@@ -37,10 +37,7 @@ export const metadata: Metadata = {
   },
   authors: [{ name: "Samuel Rizzon", url: "https://x.com/samuelrizzondev" }],
   icons: {
-    icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/icon.svg", type: "image/svg+xml" },
-    ],
+    icon: "/favicon.ico",
     apple: "/apple-icon.png",
   },
 };
