@@ -1,0 +1,246 @@
+import { NextResponse } from "next/server";
+import { getSupabaseAdmin } from "@/lib/supabase";
+import type { TopRepo } from "@/lib/github";
+
+// ─── Rate Limiting ───────────────────────────────────────────
+
+async function hashIP(ip: string): Promise<string> {
+  const data = new TextEncoder().encode(ip + (process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""));
+  const buf = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function checkRateLimit(ip: string): Promise<boolean> {
+  const sb = getSupabaseAdmin();
+  const ipHash = await hashIP(ip);
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+  const { count } = await sb
+    .from("add_requests")
+    .select("*", { count: "exact", head: true })
+    .eq("ip_hash", ipHash)
+    .gte("created_at", oneHourAgo);
+
+  if ((count ?? 0) >= 10) return false;
+
+  await sb.from("add_requests").insert({ ip_hash: ipHash });
+  return true;
+}
+
+// ─── GitHub Fetching ─────────────────────────────────────────
+
+function ghHeaders(): HeadersInit {
+  const h: HeadersInit = {
+    Accept: "application/vnd.github.v3+json",
+    "User-Agent": "git-city-app",
+  };
+  if (process.env.GITHUB_TOKEN) {
+    h.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
+  }
+  return h;
+}
+
+async function fetchContributions(login: string): Promise<number> {
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) return 0;
+
+  const query = `
+    query($login: String!) {
+      user(login: $login) {
+        contributionsCollection {
+          contributionCalendar {
+            totalContributions
+          }
+        }
+      }
+    }
+  `;
+
+  try {
+    const res = await fetch("https://api.github.com/graphql", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ query, variables: { login } }),
+    });
+
+    if (!res.ok) return 0;
+
+    const json = await res.json();
+    return (
+      json?.data?.user?.contributionsCollection?.contributionCalendar
+        ?.totalContributions ?? 0
+    );
+  } catch {
+    return 0;
+  }
+}
+
+// ─── Route Handler ───────────────────────────────────────────
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ username: string }> }
+) {
+  const { username } = await params;
+  const sb = getSupabaseAdmin();
+
+  // Check cache first (no rate limit cost)
+  const { data: cached } = await sb
+    .from("developers")
+    .select("*")
+    .eq("github_login", username.toLowerCase())
+    .single();
+
+  if (cached) {
+    const age = Date.now() - new Date(cached.fetched_at).getTime();
+    if (age < 24 * 60 * 60 * 1000) {
+      return NextResponse.json(cached);
+    }
+  }
+
+  // Only rate limit when we need to fetch from GitHub
+  if (process.env.NODE_ENV !== "development") {
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      request.headers.get("x-real-ip") ??
+      "unknown";
+
+    const allowed = await checkRateLimit(ip);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Max 10 lookups per hour." },
+        { status: 429 }
+      );
+    }
+  }
+
+  // Fetch from GitHub
+  try {
+    const headers = ghHeaders();
+
+    const [userRes, reposRes] = await Promise.all([
+      fetch(
+        `https://api.github.com/users/${encodeURIComponent(username)}`,
+        { headers }
+      ),
+      fetch(
+        `https://api.github.com/users/${encodeURIComponent(username)}/repos?sort=pushed&per_page=100`,
+        { headers }
+      ),
+    ]);
+
+    if (!userRes.ok) {
+      if (userRes.status === 404) {
+        return NextResponse.json(
+          { error: "User not found" },
+          { status: 404 }
+        );
+      }
+      if (userRes.status === 403) {
+        return NextResponse.json(
+          { error: "GitHub API rate limit exceeded." },
+          { status: 429 }
+        );
+      }
+      return NextResponse.json(
+        { error: "Failed to fetch user data" },
+        { status: userRes.status }
+      );
+    }
+
+    const ghUser = await userRes.json();
+    const repos: Array<{
+      name: string;
+      stargazers_count: number;
+      language: string | null;
+      html_url: string;
+      fork: boolean;
+      size: number;
+    }> = reposRes.ok ? await reposRes.json() : [];
+
+    // Fetch contributions via GraphQL
+    const contributions = await fetchContributions(ghUser.login);
+
+    // Derived fields
+    const ownRepos = repos.filter((r) => !r.fork);
+    const totalStars = ownRepos.reduce(
+      (s, r) => s + r.stargazers_count,
+      0
+    );
+
+    // Primary language by total repo size
+    const langCounts: Record<string, number> = {};
+    for (const repo of ownRepos) {
+      if (repo.language) {
+        langCounts[repo.language] =
+          (langCounts[repo.language] || 0) + repo.size;
+      }
+    }
+    const primaryLanguage =
+      Object.entries(langCounts).sort(([, a], [, b]) => b - a)[0]?.[0] ??
+      null;
+
+    // Top 5 repos by stars
+    const topRepos: TopRepo[] = ownRepos
+      .sort((a, b) => b.stargazers_count - a.stargazers_count)
+      .slice(0, 5)
+      .map((r) => ({
+        name: r.name,
+        stars: r.stargazers_count,
+        language: r.language,
+        url: r.html_url,
+      }));
+
+    // Upsert into Supabase
+    const record = {
+      github_login: ghUser.login.toLowerCase(),
+      github_id: ghUser.id,
+      name: ghUser.name,
+      avatar_url: ghUser.avatar_url,
+      bio: ghUser.bio,
+      contributions,
+      public_repos: ghUser.public_repos,
+      total_stars: totalStars,
+      primary_language: primaryLanguage,
+      top_repos: topRepos,
+      fetched_at: new Date().toISOString(),
+    };
+
+    const { data: upserted, error: upsertError } = await sb
+      .from("developers")
+      .upsert(record, { onConflict: "github_login" })
+      .select()
+      .single();
+
+    if (upsertError) {
+      console.error("Upsert error:", upsertError);
+      return NextResponse.json(
+        { error: "Failed to save developer data" },
+        { status: 500 }
+      );
+    }
+
+    // Recalculate ranks
+    await sb.rpc("recalculate_ranks");
+
+    // Re-fetch to get updated rank
+    const { data: final } = await sb
+      .from("developers")
+      .select("*")
+      .eq("github_login", ghUser.login.toLowerCase())
+      .single();
+
+    return NextResponse.json(final ?? upserted);
+  } catch (err) {
+    console.error("Dev route error:", err);
+    return NextResponse.json(
+      { error: "Failed to fetch GitHub data" },
+      { status: 500 }
+    );
+  }
+}
