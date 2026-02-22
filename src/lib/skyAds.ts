@@ -37,6 +37,32 @@ export function getActiveAds(ads: SkyAd[]) {
   };
 }
 
+/** Append UTM params to an ad link. Skips mailto: links. */
+export function buildAdLink(ad: SkyAd): string | undefined {
+  if (!ad.link) return undefined;
+  if (ad.link.startsWith("mailto:")) return ad.link;
+  try {
+    const url = new URL(ad.link);
+    url.searchParams.set("utm_source", "gitcity");
+    url.searchParams.set("utm_medium", "sky_ad");
+    url.searchParams.set("utm_campaign", ad.id);
+    url.searchParams.set("utm_content", ad.vehicle);
+    return url.toString();
+  } catch {
+    return ad.link;
+  }
+}
+
+/** Fire a tracking beacon to the sky-ads track API (non-blocking). */
+export function trackAdEvent(adId: string, eventType: "impression" | "click" | "cta_click") {
+  const body = JSON.stringify({ ad_id: adId, event_type: eventType });
+  if (typeof navigator !== "undefined" && navigator.sendBeacon) {
+    navigator.sendBeacon("/api/sky-ads/track", new Blob([body], { type: "application/json" }));
+  } else {
+    fetch("/api/sky-ads/track", { method: "POST", body, keepalive: true }).catch(() => {});
+  }
+}
+
 export const DEFAULT_SKY_ADS: SkyAd[] = [
   {
     id: "gitcity",

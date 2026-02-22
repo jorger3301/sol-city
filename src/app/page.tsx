@@ -19,7 +19,8 @@ import ActivityTicker, { type FeedEvent } from "@/components/ActivityTicker";
 import ActivityPanel from "@/components/ActivityPanel";
 import LofiRadio from "@/components/LofiRadio";
 import { ITEM_NAMES, ITEM_EMOJIS } from "@/lib/zones";
-import { DEFAULT_SKY_ADS } from "@/lib/skyAds";
+import { DEFAULT_SKY_ADS, buildAdLink, trackAdEvent } from "@/lib/skyAds";
+import { track } from "@vercel/analytics";
 
 const CityCanvas = dynamic(() => import("@/components/CityCanvas"), {
   ssr: false,
@@ -354,6 +355,26 @@ function HomeContent() {
   const [compareCopied, setCompareCopied] = useState(false);
   const [compareLang, setCompareLang] = useState<"en" | "pt">("en");
   const [clickedAd, setClickedAd] = useState<import("@/lib/skyAds").SkyAd | null>(null);
+  const [skyAds, setSkyAds] = useState<import("@/lib/skyAds").SkyAd[]>(DEFAULT_SKY_ADS);
+  const impressedRef = useRef(new Set<string>());
+
+  // Fetch ads from DB (fallback to DEFAULT_SKY_ADS on error)
+  useEffect(() => {
+    fetch("/api/sky-ads")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (Array.isArray(data) && data.length > 0) setSkyAds(data); })
+      .catch(() => {});
+  }, []);
+
+  // Fire impression events once per ad per session
+  useEffect(() => {
+    for (const ad of skyAds) {
+      if (!impressedRef.current.has(ad.id)) {
+        impressedRef.current.add(ad.id);
+        trackAdEvent(ad.id, "impression");
+      }
+    }
+  }, [skyAds]);
 
   // Derived — second focused building for dual-focus camera
   const focusedBuildingB = comparePair ? comparePair[1].login : null;
@@ -863,8 +884,11 @@ function HomeContent() {
         onClearFocus={() => setFocusedBuilding(null)}
         flyPauseSignal={flyPauseSignal}
         flyHasOverlay={!!selectedBuilding}
-        skyAds={DEFAULT_SKY_ADS}
-        onAdClick={(ad) => setClickedAd(ad)}
+        skyAds={skyAds}
+        onAdClick={(ad) => {
+          trackAdEvent(ad.id, "click");
+          setClickedAd(ad);
+        }}
         onFocusInfo={() => {}}
         onBuildingClick={(b) => {
           // Compare pick mode: clicking a second building completes the pair
@@ -1986,24 +2010,32 @@ function HomeContent() {
               )}
 
               {/* CTA */}
-              {clickedAd.link && (
-                <div className="px-4 pb-5 sm:pb-4">
-                  <a
-                    href={clickedAd.link}
-                    target={clickedAd.link.startsWith("mailto:") ? undefined : "_blank"}
-                    rel={clickedAd.link.startsWith("mailto:") ? undefined : "noopener noreferrer"}
-                    className="btn-press block w-full py-2.5 text-center text-[10px] text-bg"
-                    style={{
-                      backgroundColor: theme.accent,
-                      boxShadow: `4px 4px 0 0 ${theme.shadow}`,
-                    }}
-                  >
-                    {clickedAd.link.startsWith("mailto:")
-                      ? "Send Email \u2192"
-                      : `Visit ${new URL(clickedAd.link).hostname.replace("www.", "")} \u2192`}
-                  </a>
-                </div>
-              )}
+              {clickedAd.link && (() => {
+                const ctaHref = buildAdLink(clickedAd) ?? clickedAd.link;
+                const isMailto = clickedAd.link.startsWith("mailto:");
+                return (
+                  <div className="px-4 pb-5 sm:pb-4">
+                    <a
+                      href={ctaHref}
+                      target={isMailto ? undefined : "_blank"}
+                      rel={isMailto ? undefined : "noopener noreferrer"}
+                      className="btn-press block w-full py-2.5 text-center text-[10px] text-bg"
+                      style={{
+                        backgroundColor: theme.accent,
+                        boxShadow: `4px 4px 0 0 ${theme.shadow}`,
+                      }}
+                      onClick={() => {
+                        track("sky_ad_click", { ad_id: clickedAd.id, vehicle: clickedAd.vehicle, brand: clickedAd.brand ?? "" });
+                        trackAdEvent(clickedAd.id, "cta_click");
+                      }}
+                    >
+                      {isMailto
+                        ? "Send Email \u2192"
+                        : `Visit ${new URL(clickedAd.link!).hostname.replace("www.", "")} \u2192`}
+                    </a>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
