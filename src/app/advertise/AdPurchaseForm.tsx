@@ -1,22 +1,93 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { SKY_AD_PLANS, getPriceCents, formatPrice, type SkyAdPlanId, type AdCurrency } from "@/lib/skyAdPlans";
+import { SKY_AD_PLANS, getPriceCents, getFullPriceCents, formatPrice, PROMO_DISCOUNT, PROMO_LABEL, type SkyAdPlanId, type AdCurrency } from "@/lib/skyAdPlans";
 import { MAX_TEXT_LENGTH } from "@/lib/skyAds";
 
 const ACCENT = "#c8e64a";
 
-const PLAN_ORDER: SkyAdPlanId[] = [
+const SKY_PLANS: SkyAdPlanId[] = [
   "plane_weekly",
   "plane_monthly",
   "blimp_weekly",
   "blimp_monthly",
 ];
 
+const BUILDING_PLANS: SkyAdPlanId[] = [
+  "billboard_weekly",
+  "billboard_monthly",
+  "rooftop_sign_weekly",
+  "rooftop_sign_monthly",
+  "led_wrap_weekly",
+  "led_wrap_monthly",
+];
+
+const VEHICLE_INFO: Record<string, { icon: string; name: string; desc: string }> = {
+  plane: { icon: "\u2708", name: "Plane", desc: "Banner towed by paper airplane" },
+  blimp: { icon: "\u25C6", name: "Blimp", desc: "LED screens on a dirigible" },
+  billboard: { icon: "\uD83D\uDCCB", name: "Billboard", desc: "LED panel on building face" },
+  rooftop_sign: { icon: "\uD83D\uDD04", name: "Rooftop Sign", desc: "Spinning sign above the rooftop" },
+  led_wrap: { icon: "\uD83D\uDCA1", name: "LED Wrap", desc: "LED band wrapping around the building" },
+};
+
 function detectCurrency(): AdCurrency {
   if (typeof navigator === "undefined") return "usd";
   const lang = navigator.language || "";
   return lang.startsWith("pt") ? "brl" : "usd";
+}
+
+function PlanCard({
+  planId,
+  currency,
+  isSelected,
+  onSelect,
+}: {
+  planId: SkyAdPlanId;
+  currency: AdCurrency;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  const p = SKY_AD_PLANS[planId];
+  const info = VEHICLE_INFO[p.vehicle] ?? { icon: "?", name: p.vehicle, desc: "" };
+  const price = getPriceCents(planId, currency);
+  const fullPrice = getFullPriceCents(planId, currency);
+  const hasDiscount = PROMO_DISCOUNT < 1;
+  const isMonthly = planId.includes("monthly");
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className="relative border-[3px] p-4 text-left transition-colors"
+      style={{
+        borderColor: isSelected ? ACCENT : "var(--color-border)",
+      }}
+    >
+      <div className="flex items-center gap-2">
+        <span className="text-lg">{info.icon}</span>
+        <div>
+          <span className="text-xs text-cream">{info.name}</span>
+          <span className="ml-2 text-[9px] text-muted normal-case">
+            {isMonthly ? "monthly" : "weekly"}
+          </span>
+        </div>
+      </div>
+      <p className="mt-1 text-[9px] text-muted normal-case">{info.desc}</p>
+      <div className="mt-2 flex items-baseline gap-2">
+        <span className="text-lg text-cream">
+          <span style={{ color: ACCENT }}>{formatPrice(price, currency)}</span>
+        </span>
+        {hasDiscount && (
+          <span className="text-[10px] text-muted line-through normal-case">
+            {formatPrice(fullPrice, currency)}
+          </span>
+        )}
+        <span className="text-[9px] text-muted normal-case">
+          / {p.duration_days} days
+        </span>
+      </div>
+    </button>
+  );
 }
 
 export function AdPurchaseForm() {
@@ -90,9 +161,21 @@ export function AdPurchaseForm() {
 
   const priceCents = getPriceCents(selectedPlan, currency);
   const priceLabel = formatPrice(priceCents, currency);
+  const selectedVehicle = SKY_AD_PLANS[selectedPlan].vehicle;
+  const selectedInfo = VEHICLE_INFO[selectedVehicle];
 
   return (
     <div>
+      {/* Promo banner */}
+      {PROMO_DISCOUNT < 1 && (
+        <div
+          className="mb-4 border-[3px] p-3 text-center text-xs"
+          style={{ borderColor: ACCENT, color: ACCENT }}
+        >
+          {PROMO_LABEL}
+        </div>
+      )}
+
       {/* Currency toggle */}
       <div className="mb-4 flex justify-end">
         <div className="flex items-center gap-1 border-[2px] border-border text-[9px]">
@@ -121,41 +204,40 @@ export function AdPurchaseForm() {
         </div>
       </div>
 
-      {/* Plan Selector */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        {PLAN_ORDER.map((planId) => {
-          const p = SKY_AD_PLANS[planId];
-          const isSelected = selectedPlan === planId;
-          const vehicleType = p.vehicle;
-          const price = getPriceCents(planId, currency);
-
-          return (
-            <button
+      {/* Sky Ads Section */}
+      <div className="mb-6">
+        <h3 className="mb-3 text-xs text-muted normal-case">
+          Sky Ads <span className="text-[9px] text-dim">fly over the city</span>
+        </h3>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {SKY_PLANS.map((planId) => (
+            <PlanCard
               key={planId}
-              type="button"
-              onClick={() => setSelectedPlan(planId)}
-              className="relative border-[3px] p-4 text-left transition-colors"
-              style={{
-                borderColor: isSelected ? ACCENT : "var(--color-border)",
-              }}
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-lg">
-                  {vehicleType === "plane" ? "\u2708" : "\uD83D\uDEA8"}
-                </span>
-                <span className="text-xs text-cream">{p.label}</span>
-              </div>
-              <div className="mt-2 flex items-baseline gap-1">
-                <span className="text-lg text-cream">
-                  <span style={{ color: ACCENT }}>{formatPrice(price, currency)}</span>
-                </span>
-                <span className="text-[9px] text-muted normal-case">
-                  / {p.duration_days} days
-                </span>
-              </div>
-            </button>
-          );
-        })}
+              planId={planId}
+              currency={currency}
+              isSelected={selectedPlan === planId}
+              onSelect={() => setSelectedPlan(planId)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Building Ads Section */}
+      <div className="mb-2">
+        <h3 className="mb-3 text-xs text-muted normal-case">
+          Building Ads <span className="text-[9px] text-dim">on the tallest buildings</span>
+        </h3>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {BUILDING_PLANS.map((planId) => (
+            <PlanCard
+              key={planId}
+              planId={planId}
+              currency={currency}
+              isSelected={selectedPlan === planId}
+              onSelect={() => setSelectedPlan(planId)}
+            />
+          ))}
+        </div>
       </div>
 
       {/* Form Fields */}
@@ -274,7 +356,14 @@ export function AdPurchaseForm() {
 
       {/* Live Preview */}
       <div className="mt-8">
-        <p className="text-[10px] text-muted normal-case">Live preview</p>
+        <div className="flex items-baseline justify-between">
+          <p className="text-[10px] text-muted normal-case">Live preview</p>
+          {selectedInfo && (
+            <p className="text-[9px] normal-case" style={{ color: ACCENT }}>
+              {selectedInfo.icon} {selectedInfo.name}
+            </p>
+          )}
+        </div>
         <div
           className="mt-2 overflow-hidden border-[3px] border-border"
         >

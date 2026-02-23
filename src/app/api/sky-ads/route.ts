@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { DEFAULT_SKY_ADS, MAX_PLANES, MAX_BLIMPS, type SkyAd } from "@/lib/skyAds";
+import { DEFAULT_SKY_ADS, MAX_PLANES, MAX_BLIMPS, MAX_BILLBOARDS, MAX_ROOFTOP_SIGNS, MAX_LED_WRAPS, type SkyAd } from "@/lib/skyAds";
 
 // Rotation interval in seconds. Every interval, a different set of paid ads is served.
 const ROTATION_INTERVAL = 60;
@@ -72,13 +72,13 @@ export async function GET() {
       priority: row.priority,
     }));
 
-    const allPlanes = allAds.filter((a) => a.vehicle === "plane");
-    const allBlimps = allAds.filter((a) => a.vehicle === "blimp");
+    const planes = rotateAds(allAds.filter((a) => a.vehicle === "plane"), MAX_PLANES);
+    const blimps = rotateAds(allAds.filter((a) => a.vehicle === "blimp"), MAX_BLIMPS);
+    const billboards = rotateAds(allAds.filter((a) => a.vehicle === "billboard"), MAX_BILLBOARDS);
+    const rooftopSigns = rotateAds(allAds.filter((a) => a.vehicle === "rooftop_sign"), MAX_ROOFTOP_SIGNS);
+    const ledWraps = rotateAds(allAds.filter((a) => a.vehicle === "led_wrap"), MAX_LED_WRAPS);
 
-    const planes = rotateAds(allPlanes, MAX_PLANES);
-    const blimps = rotateAds(allBlimps, MAX_BLIMPS);
-
-    return NextResponse.json([...planes, ...blimps], {
+    return NextResponse.json([...planes, ...blimps, ...billboards, ...rooftopSigns, ...ledWraps], {
       headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" },
     });
   } catch {

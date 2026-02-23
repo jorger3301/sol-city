@@ -2194,7 +2194,13 @@ function HomeContent() {
 
       {/* ─── Sky Ad Card ─── */}
       {clickedAd && (
-        <div className="fixed inset-0 z-50 bg-black/50" onClick={() => setClickedAd(null)}>
+        <div
+          className="fixed inset-0 z-50 bg-black/50"
+          onClick={() => setClickedAd(null)}
+          onKeyDown={(e) => { if (e.key === "Escape") setClickedAd(null); }}
+          tabIndex={-1}
+          ref={(el) => el?.focus()}
+        >
           {/* Desktop: centered card. Mobile: bottom sheet */}
           <div className="pointer-events-none flex h-full items-end sm:items-center sm:justify-center">
             <div
@@ -2222,7 +2228,7 @@ function HomeContent() {
                   className="flex h-9 w-9 flex-shrink-0 items-center justify-center border-[2px]"
                   style={{ borderColor: clickedAd.color, color: clickedAd.color }}
                 >
-                  <span className="text-sm">{clickedAd.vehicle === "blimp" ? "\u25C6" : "\u2708"}</span>
+                  <span className="text-sm">{clickedAd.vehicle === "blimp" ? "\u25C6" : clickedAd.vehicle === "billboard" ? "\uD83D\uDCCB" : clickedAd.vehicle === "rooftop_sign" ? "\uD83D\uDD04" : clickedAd.vehicle === "led_wrap" ? "\uD83D\uDCA1" : "\u2708"}</span>
                 </div>
                 <div className="min-w-0 flex-1">
                   {clickedAd.brand && (

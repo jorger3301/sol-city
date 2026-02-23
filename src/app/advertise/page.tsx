@@ -9,13 +9,13 @@ const ACCENT = "#c8e64a";
 const SHADOW = "#5a7a00";
 
 export const metadata: Metadata = {
-  title: "Advertise on Git City - Sky Ads",
+  title: "Advertise on Git City",
   description:
-    "Put your brand in the sky above a 3D city of GitHub developers. Planes, blimps, LED banners, impression tracking, and click analytics.",
+    "Put your brand in the sky and on buildings of a 3D city of GitHub developers. Planes, blimps, billboards, LED wraps, impression tracking, and click analytics.",
   openGraph: {
     title: "Advertise on Git City",
     description:
-      "Your brand flying over 1,000+ developer buildings. Planes, blimps, LED banners with full analytics.",
+      "Your brand on 1,000+ developer buildings. Sky ads, building billboards, rooftop signs, LED wraps with full analytics.",
     siteName: "Git City",
     type: "website",
     locale: "en_US",
@@ -66,14 +66,14 @@ export default async function AdvertisePage() {
         {/* Hero */}
         <section className="mt-10 text-center">
           <h1 className="text-3xl text-cream md:text-4xl">
-            Sky <span style={{ color: ACCENT }}>Ads</span>
+            Advertise on <span style={{ color: ACCENT }}>Git City</span>
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-xs text-muted normal-case">
-            Your brand flying over {devCount.toLocaleString()}+ developer
-            buildings. Planes, blimps, LED banners, full analytics.
+            Your brand across {devCount.toLocaleString()}+ developer
+            buildings. Sky banners, building billboards, rooftop signs, LED wraps. Full analytics.
           </p>
           <p className="mt-2 text-[10px] normal-case" style={{ color: ACCENT }}>
-            Early adopter pricing. Prices go up as the city grows.
+            Prices scale with the city. Get in early.
           </p>
         </section>
 
@@ -135,7 +135,7 @@ export default async function AdvertisePage() {
               {
                 step: "01",
                 title: "Configure",
-                desc: "Pick plane or blimp, weekly or monthly. Set your banner text, colors, and link.",
+                desc: "Pick your ad format and duration. Set your banner text, colors, and link.",
               },
               {
                 step: "02",
@@ -144,8 +144,8 @@ export default async function AdvertisePage() {
               },
               {
                 step: "03",
-                title: "Fly",
-                desc: "Your ad activates instantly and starts flying over the city. Track impressions and clicks in real time.",
+                title: "Go Live",
+                desc: "Your ad activates instantly. Track impressions and clicks in real time via your tracking link.",
               },
             ].map((item) => (
               <div
@@ -203,7 +203,11 @@ export default async function AdvertisePage() {
             {[
               {
                 q: "How many people will see my ad?",
-                a: `The city has ${devCount.toLocaleString()}+ developer buildings and is growing every day. Every visitor sees the sky ads as they fly over the city.`,
+                a: `The city has ${devCount.toLocaleString()}+ developer buildings and is growing every day. Every visitor sees the ads as they explore the city.`,
+              },
+              {
+                q: "What ad formats are available?",
+                a: "Sky Ads: planes towing LED banners and blimps with LED screens. Building Ads: billboards on building faces, rotating rooftop signs, and LED wraps around buildings. All use the same LED dot-matrix style.",
               },
               {
                 q: "Can I change my ad text during the campaign?",
@@ -219,11 +223,11 @@ export default async function AdvertisePage() {
               },
               {
                 q: "How many slots?",
-                a: "3 plane slots and 2 blimp slots for sale. Limited inventory keeps the sky clean and your ad visible.",
+                a: "4 plane slots, 2 blimp slots, and 10 slots each for billboard, rooftop sign, and LED wrap. Limited inventory keeps your ad visible.",
               },
               {
                 q: "When does my ad go live?",
-                a: "Instantly after payment. Your ad starts flying over the city right away and you get a tracking link.",
+                a: "Instantly after payment. Your ad appears in the city right away and you get a tracking link.",
               },
             ].map((item) => (
               <div

@@ -78,6 +78,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid item_id or provider" }, { status: 400 });
   }
 
+  // Brazilian Stripe CNPJ can't charge USD to Brazilian cards.
+  const country =
+    request.headers.get("x-vercel-ip-country") ??
+    request.headers.get("cf-ipcountry") ??
+    "";
+  const isBrazil = country.toUpperCase() === "BR";
+  const stripeCurrency: "usd" | "brl" = isBrazil ? "brl" : "usd";
+
   // Gift validation
   let giftedToDevId: number | null = null;
   if (gifted_to_login) {
@@ -205,15 +213,15 @@ export async function POST(request: Request) {
 
   try {
     if (provider === "stripe") {
-      // Create pending purchase (always USD)
+      const amountCents = stripeCurrency === "brl" ? item.price_brl_cents : item.price_usd_cents;
       const { data: purchase, error: purchaseError } = await sb
         .from("purchases")
         .insert({
           developer_id: dev.id,
           item_id,
           provider: "stripe",
-          amount_cents: item.price_usd_cents,
-          currency: "usd",
+          amount_cents: amountCents,
+          currency: stripeCurrency,
           status: "pending",
           ...(giftedToDevId ? { gifted_to: giftedToDevId } : {}),
         })
@@ -224,7 +232,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Failed to create purchase" }, { status: 500 });
       }
 
-      const { url } = await createCheckoutSession(item_id, dev.id, githubLogin, "usd", user.email, giftedToDevId, gifted_to_login);
+      const { url } = await createCheckoutSession(item_id, dev.id, githubLogin, stripeCurrency, user.email, giftedToDevId, gifted_to_login);
       return NextResponse.json({ url, purchase_id: purchase.id });
     } else {
       // AbacatePay

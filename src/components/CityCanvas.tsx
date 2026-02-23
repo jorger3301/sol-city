@@ -9,6 +9,7 @@ import type { FocusInfo } from "./CityScene";
 import type { CityBuilding, CityPlaza, CityDecoration, CityRiver, CityBridge } from "@/lib/github";
 import { seededRandom } from "@/lib/github";
 import SkyAds from "./SkyAds";
+import BuildingAds from "./BuildingAds";
 import type { SkyAd } from "@/lib/skyAds";
 
 // ─── Theme Definitions ───────────────────────────────────────
@@ -1374,7 +1375,10 @@ export default function CityCanvas({ buildings, plazas, decorations, river, brid
       <InstancedDecorations items={decorations} roadMarkingColor={t.roadMarkingColor} sidewalkColor={t.sidewalkColor} />
 
       {skyAds && skyAds.length > 0 && (
-        <SkyAds ads={skyAds} cityRadius={cityRadius} flyMode={flyMode} onAdClick={onAdClick} onAdViewed={onAdViewed} />
+        <>
+          <SkyAds ads={skyAds} cityRadius={cityRadius} flyMode={flyMode} onAdClick={onAdClick} onAdViewed={onAdViewed} />
+          <BuildingAds ads={skyAds} buildings={buildings} onAdClick={onAdClick} onAdViewed={onAdViewed} />
+        </>
       )}
     </Canvas>
   );

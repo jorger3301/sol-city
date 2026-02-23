@@ -91,7 +91,7 @@ export default async function TrackingPage({ params }: Props) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="text-lg">
-                {ad.vehicle === "plane" ? "\u2708" : "\uD83D\uDEA8"}
+                {ad.vehicle === "plane" ? "\u2708" : ad.vehicle === "blimp" ? "\u25C6" : ad.vehicle === "billboard" ? "\uD83D\uDCCB" : ad.vehicle === "rooftop_sign" ? "\uD83D\uDD04" : ad.vehicle === "led_wrap" ? "\uD83D\uDCA1" : "\u2708"}
               </span>
               <span className="text-xs text-cream">
                 {ad.brand || ad.id}
@@ -145,7 +145,7 @@ export default async function TrackingPage({ params }: Props) {
           <h2 className="text-sm text-cream">Details</h2>
           <div className="mt-4 space-y-3">
             {[
-              { label: "Vehicle", value: ad.vehicle },
+              { label: "Vehicle", value: ad.vehicle === "rooftop_sign" ? "Rooftop Sign" : ad.vehicle === "led_wrap" ? "LED Wrap" : ad.vehicle.charAt(0).toUpperCase() + ad.vehicle.slice(1) },
               { label: "Plan", value: ad.plan_id?.replace("_", " ") ?? "-" },
               { label: "Created", value: formatDate(ad.created_at) },
               { label: "Started", value: formatDate(ad.starts_at) },

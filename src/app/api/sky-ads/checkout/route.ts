@@ -52,7 +52,15 @@ export async function POST(request: NextRequest) {
   }
 
   const { plan_id, text, color, bgColor, link, brand } = body;
-  const currency: AdCurrency = body.currency === "brl" ? "brl" : "usd";
+
+  // Brazilian Stripe CNPJ can't charge USD to Brazilian cards.
+  // Detect country via Vercel/CF geolocation headers and force BRL for BR users.
+  const country =
+    request.headers.get("x-vercel-ip-country") ??
+    request.headers.get("cf-ipcountry") ??
+    "";
+  const isBrazil = country.toUpperCase() === "BR";
+  const currency: AdCurrency = isBrazil ? "brl" : body.currency === "brl" ? "brl" : "usd";
 
   // Validate plan
   if (!plan_id || !isValidPlanId(plan_id)) {
@@ -133,8 +141,8 @@ export async function POST(request: NextRequest) {
           price_data: {
             currency,
             product_data: {
-              name: `Sky Ad: ${plan.label}`,
-              description: `${plan.vehicle === "plane" ? "Plane banner" : "Blimp LED"} ad for ${plan.duration_days} days on Git City`,
+              name: `Git City Ad: ${plan.label}`,
+              description: `${plan.label} ad for ${plan.duration_days} days on Git City`,
             },
             unit_amount: getPriceCents(plan_id, currency),
           },

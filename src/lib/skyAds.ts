@@ -1,3 +1,5 @@
+export type AdVehicle = "plane" | "blimp" | "billboard" | "rooftop_sign" | "led_wrap";
+
 export interface SkyAd {
   id: string;
   text: string;
@@ -6,16 +8,23 @@ export interface SkyAd {
   color: string;
   bgColor: string;
   link?: string;
-  vehicle: "plane" | "blimp";
+  vehicle: AdVehicle;
   priority: number;
 }
 
 export const MAX_PLANES = 4;
 export const MAX_BLIMPS = 2;
+export const MAX_BILLBOARDS = 10;
+export const MAX_ROOFTOP_SIGNS = 10;
+export const MAX_LED_WRAPS = 10;
 export const MAX_TEXT_LENGTH = 80;
 
 const ALLOWED_LINK_PATTERN = /^(https:\/\/|mailto:)/;
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+
+export function isBuildingAd(vehicle: string): vehicle is "billboard" | "rooftop_sign" | "led_wrap" {
+  return vehicle === "billboard" || vehicle === "rooftop_sign" || vehicle === "led_wrap";
+}
 
 export function validateAds(ads: SkyAd[]): SkyAd[] {
   return ads
@@ -34,6 +43,9 @@ export function getActiveAds(ads: SkyAd[]) {
   return {
     planeAds: valid.filter((a) => a.vehicle === "plane").slice(0, MAX_PLANES),
     blimpAds: valid.filter((a) => a.vehicle === "blimp").slice(0, MAX_BLIMPS),
+    billboardAds: valid.filter((a) => a.vehicle === "billboard").slice(0, MAX_BILLBOARDS),
+    rooftopSignAds: valid.filter((a) => a.vehicle === "rooftop_sign").slice(0, MAX_ROOFTOP_SIGNS),
+    ledWrapAds: valid.filter((a) => a.vehicle === "led_wrap").slice(0, MAX_LED_WRAPS),
   };
 }
 

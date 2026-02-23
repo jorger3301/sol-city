@@ -29,6 +29,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing required fields: id, brand, text" }, { status: 400 });
   }
 
+  const validVehicles = ["plane", "blimp", "billboard", "rooftop_sign", "led_wrap"];
+  const safeVehicle = validVehicles.includes(vehicle) ? vehicle : "plane";
+
   const admin = getSupabaseAdmin();
   const { data, error } = await admin.from("sky_ads").insert({
     id,
@@ -38,7 +41,7 @@ export async function POST(request: Request) {
     color: color ?? "#f8d880",
     bg_color: bg_color ?? "#1a1018",
     link: link ?? null,
-    vehicle: vehicle ?? "plane",
+    vehicle: safeVehicle,
     priority: priority ?? 50,
     starts_at: starts_at ?? null,
     ends_at: ends_at ?? null,
@@ -52,16 +55,31 @@ export async function POST(request: Request) {
 }
 
 // Update an existing ad
+const ALLOWED_UPDATE_FIELDS = new Set([
+  "active", "brand", "text", "description", "color", "bg_color",
+  "link", "vehicle", "priority", "starts_at", "ends_at",
+]);
+
 export async function PUT(request: Request) {
   if (!(await checkAdmin())) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await request.json();
-  const { id, ...updates } = body;
+  const { id, ...raw } = body;
 
   if (!id) {
     return NextResponse.json({ error: "Missing ad id" }, { status: 400 });
+  }
+
+  // Only allow whitelisted fields
+  const updates: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (ALLOWED_UPDATE_FIELDS.has(k)) updates[k] = v;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
   }
 
   const admin = getSupabaseAdmin();
@@ -79,7 +97,7 @@ export async function PUT(request: Request) {
   return NextResponse.json(data);
 }
 
-// Soft delete (set active = false)
+// Hard delete ad row
 export async function DELETE(request: Request) {
   if (!(await checkAdmin())) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -93,10 +111,10 @@ export async function DELETE(request: Request) {
   }
 
   const admin = getSupabaseAdmin();
-  const { error } = await admin
-    .from("sky_ads")
-    .update({ active: false })
-    .eq("id", id);
+
+  // Delete related events first, then the ad
+  await admin.from("sky_ad_events").delete().eq("ad_id", id);
+  const { error } = await admin.from("sky_ads").delete().eq("id", id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });

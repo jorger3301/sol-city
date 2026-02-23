@@ -46,8 +46,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Get all ads for brand names
-  const { data: allAds } = await admin.from("sky_ads").select("id, brand, active, vehicle");
+  // Get all ads with full details
+  const { data: allAds } = await admin.from("sky_ads").select("id, brand, text, color, bg_color, link, active, vehicle, priority, plan_id, starts_at, ends_at, purchaser_email, tracking_token, created_at");
   const adMap = new Map((allAds ?? []).map((a) => [a.id, a]));
 
   // Aggregate by ad_id
@@ -60,34 +60,38 @@ export async function GET(request: Request) {
     aggregated.set(row.ad_id, cur);
   }
 
-  const ads = Array.from(aggregated.entries()).map(([id, s]) => {
+  function buildAdEntry(id: string, s: { impressions: number; clicks: number; cta_clicks: number }) {
     const ad = adMap.get(id);
     const totalClicks = s.clicks + s.cta_clicks;
     return {
       id,
       brand: ad?.brand ?? id,
+      text: ad?.text ?? "",
+      color: ad?.color ?? "#f8d880",
+      bg_color: ad?.bg_color ?? "#1a1018",
+      link: ad?.link ?? null,
       vehicle: ad?.vehicle ?? "plane",
       active: ad?.active ?? false,
+      priority: ad?.priority ?? 0,
+      plan_id: ad?.plan_id ?? null,
+      starts_at: ad?.starts_at ?? null,
+      ends_at: ad?.ends_at ?? null,
+      purchaser_email: ad?.purchaser_email ?? null,
+      tracking_token: ad?.tracking_token ?? null,
+      created_at: ad?.created_at ?? null,
       impressions: s.impressions,
       clicks: s.clicks,
       cta_clicks: s.cta_clicks,
       ctr: s.impressions > 0 ? ((totalClicks / s.impressions) * 100).toFixed(2) + "%" : "0%",
     };
-  });
+  }
+
+  const ads = Array.from(aggregated.entries()).map(([id, s]) => buildAdEntry(id, s));
 
   // Include ads with zero events
-  for (const [id, ad] of adMap) {
+  for (const [id] of adMap) {
     if (!aggregated.has(id)) {
-      ads.push({
-        id,
-        brand: ad.brand,
-        vehicle: ad.vehicle,
-        active: ad.active,
-        impressions: 0,
-        clicks: 0,
-        cta_clicks: 0,
-        ctr: "0%",
-      });
+      ads.push(buildAdEntry(id, { impressions: 0, clicks: 0, cta_clicks: 0 }));
     }
   }
 

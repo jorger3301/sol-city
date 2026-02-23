@@ -5,6 +5,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import type { CityBuilding } from "@/lib/github";
 import type { BuildingColors } from "./CityCanvas";
+import { wasAdPointerConsumed } from "./SkyAds";
 
 // ─── Atlas Constants (must match Building3D.tsx) ───────────────
 const ATLAS_SIZE = 2048;
@@ -30,7 +31,7 @@ const vertexShader = /* glsl */ `
 
   void main() {
     vUv = uv;
-    vNormal = normalize(normalMatrix * mat3(instanceMatrix) * normal);
+    vNormal = normalize(mat3(instanceMatrix) * normal);
     vUvFront = aUvFront;
     vUvSide = aUvSide;
     vTint = aTint;
@@ -441,6 +442,7 @@ export default function InstancedBuildings({
 
     const onPointerDown = (e: PointerEvent) => {
       if (introRef.current) return;
+      if (wasAdPointerConsumed()) return;
       const id = raycastInstance(e.clientX, e.clientY);
       if (id !== null && id < buildingsRef.current.length) {
         tapRef.current = { time: performance.now(), id, x: e.clientX, y: e.clientY };

@@ -24,7 +24,7 @@ export async function createCheckoutSession(
   itemId: string,
   developerId: number,
   githubLogin: string,
-  _currency: "usd" | "brl" = "usd",
+  currency: "usd" | "brl" = "usd",
   customerEmail?: string,
   giftedToDevId?: number | null,
   giftedToLogin?: string | null
@@ -44,6 +44,7 @@ export async function createCheckoutSession(
   }
 
   const stripe = getStripe();
+  const unitAmount = currency === "brl" ? item.price_brl_cents : item.price_usd_cents;
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
@@ -51,12 +52,12 @@ export async function createCheckoutSession(
     line_items: [
       {
         price_data: {
-          currency: "usd",
+          currency,
           product_data: {
             name: item.name,
             description: item.description || undefined,
           },
-          unit_amount: item.price_usd_cents,
+          unit_amount: unitAmount,
         },
         quantity: 1,
       },

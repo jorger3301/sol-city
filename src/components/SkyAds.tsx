@@ -1,10 +1,59 @@
 "use client";
 
 import { useRef, useMemo, useEffect } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { getActiveAds, type SkyAd } from "@/lib/skyAds";
+
+// ─── Pointer guard — prevents building click when ad is tapped ─
+//
+// Native capture-phase listener raycasts against all registered ad meshes.
+// Capture phase fires BEFORE any bubble-phase handlers (guaranteed by DOM spec),
+// so the flag is always set before InstancedBuildings' pointerdown handler.
+
+let _adPointerTs = 0;
+export function markAdPointerConsumed() { _adPointerTs = performance.now(); }
+export function wasAdPointerConsumed() { return performance.now() - _adPointerTs < 300; }
+
+// Module-level registry of all clickable ad meshes (both sides of banners/screens)
+const _adMeshRegistry = new Set<THREE.Mesh>();
+export function registerAdMesh(mesh: THREE.Mesh) { _adMeshRegistry.add(mesh); }
+export function unregisterAdMesh(mesh: THREE.Mesh) { _adMeshRegistry.delete(mesh); }
+
+// Capture-phase pointerdown guard — raycasts against ad meshes before building handlers
+function SkyAdPointerGuard() {
+  const { gl, camera } = useThree();
+  const raycaster = useRef(new THREE.Raycaster());
+  const ndc = useRef(new THREE.Vector2());
+
+  useEffect(() => {
+    const canvas = gl.domElement;
+
+    const handler = (e: PointerEvent) => {
+      if (_adMeshRegistry.size === 0) return;
+
+      const rect = canvas.getBoundingClientRect();
+      ndc.current.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      ndc.current.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.current.setFromCamera(ndc.current, camera);
+
+      const meshes = Array.from(_adMeshRegistry);
+      for (const m of meshes) m.updateWorldMatrix(true, false);
+
+      const hits = raycaster.current.intersectObjects(meshes, false);
+      if (hits.length > 0) {
+        markAdPointerConsumed();
+      }
+    };
+
+    // capture: true = fires before ALL bubble-phase listeners
+    canvas.addEventListener("pointerdown", handler, true);
+    return () => canvas.removeEventListener("pointerdown", handler, true);
+  }, [gl, camera]);
+
+  return null;
+}
 
 // ─── LED Dot-Matrix Texture ──────────────────────────────────
 //
@@ -15,9 +64,9 @@ const LED_H = 48;
 const LED_DOT = 4;
 const LED_FONT = 32;
 const LED_VISIBLE = 256;
-const SCROLL_SPEED = 0.25;
+export const SCROLL_SPEED = 0.25;
 
-function createLedTexture(text: string, color: string, bgColor: string) {
+export function createLedTexture(text: string, color: string, bgColor: string) {
   const tmp = document.createElement("canvas");
   const tmpCtx = tmp.getContext("2d")!;
   tmpCtx.font = `bold ${LED_FONT}px monospace`;
@@ -175,6 +224,20 @@ function BannerPlane({
     }
   });
 
+  // Register both banner sides for the capture-phase pointer guard
+  const side1Ref = useRef<THREE.Mesh>(null);
+  const side2Ref = useRef<THREE.Mesh>(null);
+  useEffect(() => {
+    const s1 = side1Ref.current;
+    const s2 = side2Ref.current;
+    if (s1) registerAdMesh(s1);
+    if (s2) registerAdMesh(s2);
+    return () => {
+      if (s1) unregisterAdMesh(s1);
+      if (s2) unregisterAdMesh(s2);
+    };
+  }, []);
+
   const handleClick = (e: any) => {
     e.stopPropagation();
     if (flyMode) return;
@@ -202,7 +265,11 @@ function BannerPlane({
 
       {/* LED banner — side 1 (faces +X) */}
       <mesh
-        ref={meshRef}
+        ref={(el: THREE.Mesh | null) => {
+          side1Ref.current = el;
+          if (typeof meshRef === "function") meshRef(el);
+          else if (meshRef && "current" in meshRef) (meshRef as React.MutableRefObject<THREE.Mesh | null>).current = el;
+        }}
         material={ledMat}
         position={[0.15, bannerY, bannerZ]}
         rotation={[0, Math.PI / 2, 0]}
@@ -215,6 +282,7 @@ function BannerPlane({
 
       {/* LED banner — side 2 (faces -X, same texture — UV is correct on both sides) */}
       <mesh
+        ref={side2Ref}
         material={ledMat}
         position={[-0.15, bannerY, bannerZ]}
         rotation={[0, -Math.PI / 2, 0]}
@@ -304,6 +372,20 @@ function Blimp({
       tex.offset.x = (t * SCROLL_SPEED) % 1;
     }
   });
+
+  // Register both screen sides for the capture-phase pointer guard
+  const screen1Ref = useRef<THREE.Mesh>(null);
+  const screen2Ref = useRef<THREE.Mesh>(null);
+  useEffect(() => {
+    const s1 = screen1Ref.current;
+    const s2 = screen2Ref.current;
+    if (s1) registerAdMesh(s1);
+    if (s2) registerAdMesh(s2);
+    return () => {
+      if (s1) unregisterAdMesh(s1);
+      if (s2) unregisterAdMesh(s2);
+    };
+  }, []);
 
   const handleClick = (e: any) => {
     e.stopPropagation();
@@ -420,7 +502,11 @@ function Blimp({
 
       {/* LED Screen — left side (+X) */}
       <mesh
-        ref={screenRef}
+        ref={(el: THREE.Mesh | null) => {
+          screen1Ref.current = el;
+          if (typeof screenRef === "function") screenRef(el);
+          else if (screenRef && "current" in screenRef) (screenRef as React.MutableRefObject<THREE.Mesh | null>).current = el;
+        }}
         material={ledMat}
         position={[10.8, -2, 0]}
         rotation={[0, Math.PI / 2, 0]}
@@ -433,6 +519,7 @@ function Blimp({
 
       {/* LED Screen — right side (-X) */}
       <mesh
+        ref={screen2Ref}
         material={ledMat}
         position={[-10.8, -2, 0]}
         rotation={[0, -Math.PI / 2, 0]}
@@ -461,7 +548,7 @@ function Blimp({
 // Checks each ad mesh against the camera frustum every frame.
 // If visible for 1 continuous second, fires onAdViewed(adId) once per session.
 
-function ViewabilityTracker({
+export function ViewabilityTracker({
   meshRefs,
   onAdViewed,
 }: {
@@ -521,6 +608,7 @@ export default function SkyAds({ ads, cityRadius, flyMode, onAdClick, onAdViewed
 
   return (
     <group>
+      <SkyAdPointerGuard />
       {planeAds.map((ad, i) => (
         <BannerPlane
           key={ad.id}
