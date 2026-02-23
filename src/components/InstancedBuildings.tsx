@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useMemo, useEffect, useCallback } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useRef, useMemo, useEffect } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import type { CityBuilding } from "@/lib/github";
 import type { BuildingColors } from "./CityCanvas";
@@ -400,60 +400,95 @@ export default function InstancedBuildings({
     }
   });
 
-  // ─── Click / Hover interaction ────────────────────────────────
+  // ─── Click / Hover interaction (manual raycast, bypasses R3F events) ──
 
-  // Tap detection: capture instanceId on pointerDown (camera hasn't moved yet),
-  // then complete the click via a global pointerup listener (works even if
-  // OrbitControls rotated the camera and the ray no longer hits the building).
+  const { gl, camera } = useThree();
+  const raycasterRef = useRef(new THREE.Raycaster());
+  const pointerNDC = useRef(new THREE.Vector2());
+
+  // Stable refs so listeners always access latest values
+  const buildingsRef = useRef(buildings);
+  buildingsRef.current = buildings;
+  const onClickRef = useRef(onBuildingClick);
+  onClickRef.current = onBuildingClick;
+  const introRef = useRef(introMode);
+  introRef.current = introMode;
+
+  // Tap state: captured on pointerdown, resolved on pointerup
   const tapRef = useRef<{ time: number; id: number; x: number; y: number } | null>(null);
 
-  const handlePointerDown = useCallback(
-    (e: any) => {
-      if (introMode) return;
-      const id = e.instanceId;
-      if (id !== undefined && id < buildings.length) {
-        const ne = e.nativeEvent as PointerEvent | undefined;
-        tapRef.current = {
-          time: performance.now(),
-          id,
-          x: ne?.clientX ?? 0,
-          y: ne?.clientY ?? 0,
-        };
-      }
-    },
-    [introMode, buildings]
-  );
-
-  // Global pointerup listener to complete tap (doesn't require ray to hit mesh)
   useEffect(() => {
+    const canvas = gl.domElement;
+
+    const screenToNDC = (clientX: number, clientY: number) => {
+      const rect = canvas.getBoundingClientRect();
+      pointerNDC.current.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      pointerNDC.current.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    };
+
+    const raycastInstance = (clientX: number, clientY: number): number | null => {
+      const mesh = meshRef.current;
+      if (!mesh) return null;
+      screenToNDC(clientX, clientY);
+      raycasterRef.current.setFromCamera(pointerNDC.current, camera);
+      const hits: THREE.Intersection[] = [];
+      mesh.raycast(raycasterRef.current, hits);
+      if (hits.length > 0 && hits[0].instanceId !== undefined) {
+        return hits[0].instanceId;
+      }
+      return null;
+    };
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (introRef.current) return;
+      const id = raycastInstance(e.clientX, e.clientY);
+      if (id !== null && id < buildingsRef.current.length) {
+        tapRef.current = { time: performance.now(), id, x: e.clientX, y: e.clientY };
+      }
+    };
+
     const onPointerUp = (e: PointerEvent) => {
       const tap = tapRef.current;
       if (!tap) return;
       tapRef.current = null;
 
       const elapsed = performance.now() - tap.time;
-      if (elapsed > 400) return; // too long = not a tap
+      if (elapsed > 400) return;
 
       const dx = e.clientX - tap.x;
       const dy = e.clientY - tap.y;
-      if (dx * dx + dy * dy > 625) return; // 25px movement = drag
+      if (dx * dx + dy * dy > 625) return;
 
-      if (tap.id < buildings.length) {
-        onBuildingClick?.(buildings[tap.id]);
+      if (tap.id < buildingsRef.current.length) {
+        onClickRef.current?.(buildingsRef.current[tap.id]);
       }
     };
 
+    let lastMoveTime = 0;
+    const onPointerMove = (e: PointerEvent) => {
+      if (introRef.current) {
+        document.body.style.cursor = "auto";
+        return;
+      }
+      // Throttle hover raycast to ~15Hz
+      const now = performance.now();
+      if (now - lastMoveTime < 66) return;
+      lastMoveTime = now;
+      const id = raycastInstance(e.clientX, e.clientY);
+      document.body.style.cursor = id !== null ? "pointer" : "auto";
+    };
+
+    canvas.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("pointerup", onPointerUp);
-    return () => window.removeEventListener("pointerup", onPointerUp);
-  }, [buildings, onBuildingClick]);
+    canvas.addEventListener("pointermove", onPointerMove);
 
-  const handlePointerOver = useCallback(() => {
-    if (!introMode) document.body.style.cursor = "pointer";
-  }, [introMode]);
-
-  const handlePointerOut = useCallback(() => {
-    if (!introMode) document.body.style.cursor = "auto";
-  }, [introMode]);
+    return () => {
+      canvas.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointerup", onPointerUp);
+      canvas.removeEventListener("pointermove", onPointerMove);
+      document.body.style.cursor = "auto";
+    };
+  }, [gl, camera]);
 
   // Cleanup
   useEffect(() => {
@@ -470,9 +505,6 @@ export default function InstancedBuildings({
       ref={meshRef}
       args={[geo, material, count]}
       frustumCulled={false}
-      onPointerDown={handlePointerDown}
-      onPointerOver={handlePointerOver}
-      onPointerOut={handlePointerOut}
     />
   );
 }
