@@ -10,7 +10,7 @@ export interface SkyAd {
   priority: number;
 }
 
-export const MAX_PLANES = 3;
+export const MAX_PLANES = 4;
 export const MAX_BLIMPS = 2;
 export const MAX_TEXT_LENGTH = 80;
 
@@ -74,28 +74,6 @@ export const DEFAULT_SKY_ADS: SkyAd[] = [
     link: "https://thegitcity.com",
     vehicle: "plane",
     priority: 100,
-  },
-  {
-    id: "samuel",
-    text: "HEY, I BUILD THIS! → SAMUELRIZZON.DEV",
-    brand: "Samuel Rizzon",
-    description: "Full-stack dev who builds weird and cool stuff. This city is one of them.",
-    color: "#c8e64a",
-    bgColor: "#1a1018",
-    link: "https://www.samuelrizzon.dev/en.html",
-    vehicle: "plane",
-    priority: 90,
-  },
-  {
-    id: "build",
-    text: "YOUR AI COPILOT TO GROW ON X",
-    brand: "ReplyOS",
-    description: "I grew +1.2k followers and 1M views in 3 weeks using ReplyOS. Viral library, lead radar, post writer, auto-replies. Your AI copilot to grow on X.",
-    color: "#ffffff",
-    bgColor: "#2a1838",
-    link: "https://reply-os.com",
-    vehicle: "blimp",
-    priority: 80,
   },
   {
     id: "advertise",

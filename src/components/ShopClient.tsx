@@ -50,6 +50,8 @@ interface Props {
   achievements?: string[];
   initialLoadout?: Loadout | null;
   purchasedItem?: string | null;
+  giftedItem?: string | null;
+  giftedTo?: string | null;
 }
 
 interface PixModalData {
@@ -584,6 +586,8 @@ export default function ShopClient({
   achievements = [],
   initialLoadout = null,
   purchasedItem = null,
+  giftedItem = null,
+  giftedTo = null,
 }: Props) {
   // Loadout state
   const [loadout, setLoadout] = useState<Loadout>(
@@ -609,6 +613,9 @@ export default function ShopClient({
   const [previewBillboardImages, setPreviewBillboardImages] = useState<string[] | null>(null);
   const [autoUploading, setAutoUploading] = useState(false);
   const [purchaseToast, setPurchaseToast] = useState<string | null>(purchasedItem);
+  const [giftToast, setGiftToast] = useState<{ item: string; to: string } | null>(
+    giftedItem && giftedTo ? { item: giftedItem, to: giftedTo } : null
+  );
 
   // Track shop page view on mount
   useEffect(() => {
@@ -638,6 +645,16 @@ export default function ShopClient({
     window.history.replaceState({}, "", window.location.pathname);
     return () => clearTimeout(timer);
   }, [purchasedItem]);
+
+  // Post-gift: show gift toast
+  useEffect(() => {
+    if (!giftedItem || !giftedTo) return;
+    const shopItem = items.find((i) => i.id === giftedItem);
+    trackPurchaseCompleted(giftedItem, shopItem?.price_usd_cents ?? 0, "stripe");
+    const timer = setTimeout(() => setGiftToast(null), 5000);
+    window.history.replaceState({}, "", window.location.pathname);
+    return () => clearTimeout(timer);
+  }, [giftedItem, giftedTo]);
 
   // Default loadout for new users: if no initialLoadout and user owns flag, show flag
   const effectiveLoadout: Loadout = {
@@ -914,6 +931,19 @@ export default function ShopClient({
           >
             <span className="text-base">{ITEM_EMOJIS[purchaseToast] ?? "🎉"}</span>
             <span>{ITEM_NAMES[purchaseToast] ?? purchaseToast} purchased! Equip it below.</span>
+          </div>
+        </div>
+      )}
+
+      {/* Gift success toast */}
+      {giftToast && (
+        <div className="fixed top-4 left-1/2 z-50 -translate-x-1/2">
+          <div
+            className="flex items-center gap-2 border-[3px] px-5 py-2.5 text-[10px] text-bg"
+            style={{ backgroundColor: ACCENT, borderColor: SHADOW }}
+          >
+            <span className="text-base">🎁</span>
+            <span>{ITEM_NAMES[giftToast.item] ?? giftToast.item} sent to {giftToast.to}!</span>
           </div>
         </div>
       )}

@@ -87,24 +87,32 @@ export async function POST(request: Request) {
 
     const { data: receiver } = await sb
       .from("developers")
-      .select("id, claimed")
+      .select("id")
       .eq("github_login", gifted_to_login.toLowerCase())
       .single();
 
-    if (!receiver || !receiver.claimed) {
-      return NextResponse.json({ error: "Receiver must have claimed building" }, { status: 400 });
+    if (!receiver) {
+      return NextResponse.json({ error: "User not found in Git City" }, { status: 400 });
     }
 
-    // Check receiver doesn't already own this item
-    const { data: receiverOwns } = await sb
+    // Check receiver doesn't already own this item (bought or gifted)
+    const { data: receiverOwnsBought } = await sb
       .from("purchases")
       .select("id")
       .eq("developer_id", receiver.id)
+      .is("gifted_to", null)
+      .eq("item_id", item_id)
+      .eq("status", "completed")
+      .maybeSingle();
+    const { data: receiverOwnsGifted } = await sb
+      .from("purchases")
+      .select("id")
+      .eq("gifted_to", receiver.id)
       .eq("item_id", item_id)
       .eq("status", "completed")
       .maybeSingle();
 
-    if (receiverOwns) {
+    if (receiverOwnsBought || receiverOwnsGifted) {
       return NextResponse.json({ error: "Receiver already owns this item" }, { status: 409 });
     }
 
@@ -166,8 +174,8 @@ export async function POST(request: Request) {
         );
       }
     }
-  } else {
-    // Non-billboard items: check if already owned
+  } else if (!giftedToDevId) {
+    // Non-billboard, non-gift items: check if buyer already owns it
     const { data: existingPurchase } = await sb
       .from("purchases")
       .select("id")
@@ -216,7 +224,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Failed to create purchase" }, { status: 500 });
       }
 
-      const { url } = await createCheckoutSession(item_id, dev.id, githubLogin, "usd", user.email, giftedToDevId);
+      const { url } = await createCheckoutSession(item_id, dev.id, githubLogin, "usd", user.email, giftedToDevId, gifted_to_login);
       return NextResponse.json({ url, purchase_id: purchase.id });
     } else {
       // AbacatePay

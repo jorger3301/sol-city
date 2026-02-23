@@ -26,7 +26,8 @@ export async function createCheckoutSession(
   githubLogin: string,
   _currency: "usd" | "brl" = "usd",
   customerEmail?: string,
-  giftedToDevId?: number | null
+  giftedToDevId?: number | null,
+  giftedToLogin?: string | null
 ): Promise<{ url: string }> {
   const sb = getSupabaseAdmin();
 
@@ -66,7 +67,9 @@ export async function createCheckoutSession(
       github_login: githubLogin,
       ...(giftedToDevId ? { gifted_to: String(giftedToDevId) } : {}),
     },
-    success_url: `${getBaseUrl()}/shop/${githubLogin}?purchased=${itemId}`,
+    success_url: giftedToLogin
+      ? `${getBaseUrl()}/?user=${giftedToLogin}&gifted=${itemId}`
+      : `${getBaseUrl()}/shop/${githubLogin}?purchased=${itemId}`,
     cancel_url: `${getBaseUrl()}/shop/${githubLogin}`,
   });
 

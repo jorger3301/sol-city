@@ -34,13 +34,22 @@ export type OwnedItems = string[];
 export async function getOwnedItems(developerId: number): Promise<string[]> {
   const sb = getSupabaseAdmin();
 
-  const { data } = await sb
+  // Items bought directly (not gifts to others)
+  const { data: ownData } = await sb
     .from("purchases")
     .select("item_id")
     .eq("developer_id", developerId)
+    .is("gifted_to", null)
     .eq("status", "completed");
 
-  return (data ?? []).map((row) => row.item_id);
+  // Items received as gifts
+  const { data: giftData } = await sb
+    .from("purchases")
+    .select("item_id")
+    .eq("gifted_to", developerId)
+    .eq("status", "completed");
+
+  return [...(ownData ?? []), ...(giftData ?? [])].map((row) => row.item_id);
 }
 
 /** Item granted for free when a developer first claims their building. */
@@ -99,12 +108,19 @@ export async function autoEquipIfSolo(
 
   const sb = getSupabaseAdmin();
 
-  // Get all owned items in this zone
-  const { data: purchases } = await sb
+  // Get all owned items in this zone (bought by them OR gifted to them)
+  const { data: ownPurchases } = await sb
     .from("purchases")
     .select("item_id")
     .eq("developer_id", developerId)
+    .is("gifted_to", null)
     .eq("status", "completed");
+  const { data: giftPurchases } = await sb
+    .from("purchases")
+    .select("item_id")
+    .eq("gifted_to", developerId)
+    .eq("status", "completed");
+  const purchases = [...(ownPurchases ?? []), ...(giftPurchases ?? [])];
 
   const zoneItems = ZONE_ITEMS[zone];
   const ownedInZone = (purchases ?? [])
@@ -142,18 +158,30 @@ export async function getOwnedItemsForDevelopers(
 
   const sb = getSupabaseAdmin();
 
-  const { data } = await sb
+  // Items bought directly (not gifts)
+  const { data: ownData } = await sb
     .from("purchases")
     .select("developer_id, item_id")
     .in("developer_id", developerIds)
+    .is("gifted_to", null)
+    .eq("status", "completed");
+
+  // Items received as gifts
+  const { data: giftData } = await sb
+    .from("purchases")
+    .select("gifted_to, item_id")
+    .in("gifted_to", developerIds)
     .eq("status", "completed");
 
   const result: Record<number, string[]> = {};
-  for (const row of data ?? []) {
-    if (!result[row.developer_id]) {
-      result[row.developer_id] = [];
-    }
+  for (const row of ownData ?? []) {
+    if (!result[row.developer_id]) result[row.developer_id] = [];
     result[row.developer_id].push(row.item_id);
+  }
+  for (const row of giftData ?? []) {
+    const devId = row.gifted_to as number;
+    if (!result[devId]) result[devId] = [];
+    result[devId].push(row.item_id);
   }
   return result;
 }

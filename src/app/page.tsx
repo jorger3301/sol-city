@@ -317,6 +317,7 @@ function MiniLeaderboard({ buildings, accent }: { buildings: CityBuilding[]; acc
 function HomeContent() {
   const searchParams = useSearchParams();
   const userParam = searchParams.get("user");
+  const giftedParam = searchParams.get("gifted");
 
   const [username, setUsername] = useState("");
   const failedUsernamesRef = useRef<Map<string, string>>(new Map()); // username -> error code
@@ -712,10 +713,10 @@ function HomeContent() {
     setIntroConfetti(false);
   }, []);
 
-  // Focus on building from ?user= query param
+  // Focus on building from ?user= query param (skip if gift redirect, handled separately)
   const didFocusUserParam = useRef(false);
   useEffect(() => {
-    if (userParam && buildings.length > 0 && !didFocusUserParam.current) {
+    if (userParam && !giftedParam && buildings.length > 0 && !didFocusUserParam.current) {
       didFocusUserParam.current = true;
       setFocusedBuilding(userParam);
       const found = buildings.find(
@@ -726,7 +727,7 @@ function HomeContent() {
         setExploreMode(true);
       }
     }
-  }, [userParam, buildings]);
+  }, [userParam, giftedParam, buildings]);
 
   // Handle ?compare=userA,userB deep link
   const compareParam = searchParams.get("compare");
@@ -778,6 +779,28 @@ function HomeContent() {
       return () => clearTimeout(timer);
     }
   }, [purchasedParam, reloadCity]);
+
+  // Detect post-gift redirect (?gifted=item_id&user=login)
+  const [giftedInfo, setGiftedInfo] = useState<{ item: string; to: string } | null>(null);
+  const didHandleGiftParam = useRef(false);
+  useEffect(() => {
+    if (giftedParam && userParam && buildings.length > 0 && !didHandleGiftParam.current) {
+      didHandleGiftParam.current = true;
+      setGiftedInfo({ item: giftedParam, to: userParam });
+      reloadCity();
+      // Focus on receiver's building
+      setFocusedBuilding(userParam);
+      const found = buildings.find(
+        (b) => b.login.toLowerCase() === userParam.toLowerCase()
+      );
+      if (found) {
+        setSelectedBuilding(found);
+        setExploreMode(true);
+      }
+      const timer = setTimeout(() => setGiftedInfo(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [giftedParam, userParam, buildings, reloadCity]);
 
   const searchUser = useCallback(async () => {
     const trimmed = username.trim().toLowerCase();
@@ -1489,6 +1512,22 @@ function HomeContent() {
             }}
           >
             Item purchased! Effect applied to your building.
+          </div>
+        </div>
+      )}
+
+      {/* ─── Gift Toast ─── */}
+      {giftedInfo && (
+        <div className="fixed top-16 left-1/2 z-50 -translate-x-1/2">
+          <div
+            className="flex items-center gap-2 border-[3px] px-5 py-2.5 text-[10px] text-bg"
+            style={{
+              backgroundColor: theme.accent,
+              borderColor: theme.shadow,
+            }}
+          >
+            <span className="text-base">🎁</span>
+            <span>{ITEM_NAMES[giftedInfo.item] ?? giftedInfo.item} sent to {giftedInfo.to}!</span>
           </div>
         </div>
       )}

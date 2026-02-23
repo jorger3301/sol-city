@@ -1,0 +1,165 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getStripe } from "@/lib/stripe";
+import { getSupabaseAdmin } from "@/lib/supabase";
+import { SKY_AD_PLANS, isValidPlanId, getPriceCents, type AdCurrency } from "@/lib/skyAdPlans";
+import { MAX_TEXT_LENGTH } from "@/lib/skyAds";
+import { rateLimit } from "@/lib/rate-limit";
+
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+const ALLOWED_LINK = /^(https:\/\/|mailto:)/;
+
+function getBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_BASE_URL) return process.env.NEXT_PUBLIC_BASE_URL;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return "http://localhost:3000";
+}
+
+function generateToken(): string {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let token = "";
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  for (const b of bytes) token += chars[b % chars.length];
+  return token;
+}
+
+export async function POST(request: NextRequest) {
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    request.headers.get("x-real-ip") ??
+    "unknown";
+
+  const { ok } = rateLimit(`checkout:${ip}`, 1, 10_000);
+  if (!ok) {
+    return NextResponse.json(
+      { error: "Too many requests. Try again in a few seconds." },
+      { status: 429 }
+    );
+  }
+
+  let body: {
+    plan_id?: string;
+    text?: string;
+    color?: string;
+    bgColor?: string;
+    link?: string;
+    brand?: string;
+    currency?: string;
+  };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const { plan_id, text, color, bgColor, link, brand } = body;
+  const currency: AdCurrency = body.currency === "brl" ? "brl" : "usd";
+
+  // Validate plan
+  if (!plan_id || !isValidPlanId(plan_id)) {
+    return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
+  }
+
+  // Validate text
+  if (!text || typeof text !== "string" || text.trim().length === 0) {
+    return NextResponse.json({ error: "Text is required" }, { status: 400 });
+  }
+  if (text.length > MAX_TEXT_LENGTH) {
+    return NextResponse.json(
+      { error: `Text must be ${MAX_TEXT_LENGTH} characters or less` },
+      { status: 400 }
+    );
+  }
+
+  // Validate colors
+  if (!color || !HEX_COLOR.test(color)) {
+    return NextResponse.json({ error: "Invalid text color (use #RRGGBB)" }, { status: 400 });
+  }
+  if (!bgColor || !HEX_COLOR.test(bgColor)) {
+    return NextResponse.json({ error: "Invalid background color (use #RRGGBB)" }, { status: 400 });
+  }
+
+  // Validate link (optional but must be valid if provided)
+  if (link && !ALLOWED_LINK.test(link)) {
+    return NextResponse.json(
+      { error: "Link must start with https:// or mailto:" },
+      { status: 400 }
+    );
+  }
+
+  // Validate brand
+  const safeBrand = brand ? String(brand).slice(0, 60) : undefined;
+
+  const plan = SKY_AD_PLANS[plan_id];
+  const sb = getSupabaseAdmin();
+
+  // Generate IDs
+  const adId = safeBrand
+    ? safeBrand.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30) +
+      "-" +
+      generateToken().slice(0, 6)
+    : "ad-" + generateToken().slice(0, 16);
+  const trackingToken = generateToken();
+
+  // Create inactive sky_ad row
+  const { error: insertError } = await sb.from("sky_ads").insert({
+    id: adId,
+    text: text.trim(),
+    brand: safeBrand,
+    color,
+    bg_color: bgColor,
+    link: link || null,
+    vehicle: plan.vehicle,
+    priority: 50,
+    active: false,
+    plan_id,
+    tracking_token: trackingToken,
+  });
+
+  if (insertError) {
+    console.error("Failed to create sky_ad:", insertError);
+    return NextResponse.json({ error: "Failed to create ad" }, { status: 500 });
+  }
+
+  // Create Stripe checkout session
+  const stripe = getStripe();
+  const baseUrl = getBaseUrl();
+
+  try {
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      expires_at: Math.floor(Date.now() / 1000) + 30 * 60, // 30 min
+      line_items: [
+        {
+          price_data: {
+            currency,
+            product_data: {
+              name: `Sky Ad: ${plan.label}`,
+              description: `${plan.vehicle === "plane" ? "Plane banner" : "Blimp LED"} ad for ${plan.duration_days} days on Git City`,
+            },
+            unit_amount: getPriceCents(plan_id, currency),
+          },
+          quantity: 1,
+        },
+      ],
+      metadata: {
+        sky_ad_id: adId,
+        type: "sky_ad",
+      },
+      success_url: `${baseUrl}/advertise?success=${trackingToken}`,
+      cancel_url: `${baseUrl}/advertise`,
+    });
+
+    // Store stripe session ID on the ad row
+    await sb
+      .from("sky_ads")
+      .update({ stripe_session_id: session.id })
+      .eq("id", adId);
+
+    return NextResponse.json({ url: session.url });
+  } catch (err) {
+    console.error("Stripe checkout creation failed:", err);
+    // Clean up the orphaned row
+    await sb.from("sky_ads").delete().eq("id", adId);
+    return NextResponse.json({ error: "Payment setup failed" }, { status: 500 });
+  }
+}

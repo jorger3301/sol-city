@@ -11,7 +11,7 @@ import ShopClient from "@/components/ShopClient";
 
 interface Props {
   params: Promise<{ username: string }>;
-  searchParams: Promise<{ purchased?: string }>;
+  searchParams: Promise<{ purchased?: string; gifted?: string; to?: string }>;
 }
 
 async function getDeveloper(username: string) {
@@ -53,7 +53,7 @@ const ACCENT = "#c8e64a";
 
 export default async function ShopPage({ params, searchParams }: Props) {
   const { username } = await params;
-  const { purchased: purchasedItem } = await searchParams;
+  const { purchased: purchasedItem, gifted: giftedItem, to: giftedTo } = await searchParams;
   const dev = await getDeveloper(username);
 
   if (!dev) notFound();
@@ -222,6 +222,8 @@ export default async function ShopPage({ params, searchParams }: Props) {
           achievements={achievements}
           initialLoadout={initialLoadout}
           purchasedItem={purchasedItem ?? null}
+          giftedItem={giftedItem ?? null}
+          giftedTo={giftedTo ?? null}
         />
 
         {/* Back links */}

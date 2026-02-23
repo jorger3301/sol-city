@@ -37,11 +37,17 @@ export async function GET(request: Request) {
   }
 
   // Round 2: purchases + customizations + achievements in parallel
-  const [purchasesResult, customizationsResult, achievementsResult] = await Promise.all([
+  const [purchasesResult, giftPurchasesResult, customizationsResult, achievementsResult] = await Promise.all([
     sb
       .from("purchases")
       .select("developer_id, item_id")
       .in("developer_id", devIds)
+      .is("gifted_to", null)
+      .eq("status", "completed"),
+    sb
+      .from("purchases")
+      .select("gifted_to, item_id")
+      .in("gifted_to", devIds)
       .eq("status", "completed"),
     sb
       .from("developer_customizations")
@@ -54,11 +60,16 @@ export async function GET(request: Request) {
       .in("developer_id", devIds),
   ]);
 
-  // Build owned items map
+  // Build owned items map (direct purchases + received gifts)
   const ownedItemsMap: Record<number, string[]> = {};
   for (const row of purchasesResult.data ?? []) {
     if (!ownedItemsMap[row.developer_id]) ownedItemsMap[row.developer_id] = [];
     ownedItemsMap[row.developer_id].push(row.item_id);
+  }
+  for (const row of giftPurchasesResult.data ?? []) {
+    const devId = row.gifted_to as number;
+    if (!ownedItemsMap[devId]) ownedItemsMap[devId] = [];
+    ownedItemsMap[devId].push(row.item_id);
   }
 
   // Build customization maps

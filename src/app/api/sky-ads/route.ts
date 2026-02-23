@@ -1,13 +1,54 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { DEFAULT_SKY_ADS, type SkyAd } from "@/lib/skyAds";
+import { DEFAULT_SKY_ADS, MAX_PLANES, MAX_BLIMPS, type SkyAd } from "@/lib/skyAds";
+
+// Rotation interval in seconds. Every interval, a different set of paid ads is served.
+const ROTATION_INTERVAL = 60;
+
+/**
+ * Deterministic shuffle using a numeric seed.
+ * Same seed = same order across all server instances.
+ */
+function seededShuffle<T>(arr: T[], seed: number): T[] {
+  const result = [...arr];
+  let s = seed;
+  for (let i = result.length - 1; i > 0; i--) {
+    s = (s * 1664525 + 1013904223) & 0x7fffffff; // LCG
+    const j = s % (i + 1);
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+/**
+ * Pick which paid ads to show this rotation window.
+ * Permanent ads (no plan_id / priority >= 100) always show.
+ * Paid ads rotate every ROTATION_INTERVAL seconds so all get equal airtime.
+ */
+function rotateAds(ads: SkyAd[], maxSlots: number): SkyAd[] {
+  const permanent = ads.filter((a) => a.priority >= 100);
+  const paid = ads.filter((a) => a.priority < 100);
+
+  const availableSlots = Math.max(0, maxSlots - permanent.length);
+
+  if (paid.length <= availableSlots) {
+    // All fit, no rotation needed
+    return [...permanent, ...paid];
+  }
+
+  // Time-based seed: changes every ROTATION_INTERVAL seconds
+  const seed = Math.floor(Date.now() / 1000 / ROTATION_INTERVAL);
+  const shuffled = seededShuffle(paid, seed);
+
+  return [...permanent, ...shuffled.slice(0, availableSlots)];
+}
 
 export async function GET() {
   try {
     const sb = getSupabaseAdmin();
     const { data, error } = await sb
       .from("sky_ads")
-      .select("id, brand, text, description, color, bg_color, link, vehicle, priority")
+      .select("id, brand, text, description, color, bg_color, link, vehicle, priority, plan_id")
       .eq("active", true)
       .or("starts_at.is.null,starts_at.lte.now()")
       .or("ends_at.is.null,ends_at.gt.now()")
@@ -19,7 +60,7 @@ export async function GET() {
       });
     }
 
-    const ads: SkyAd[] = data.map((row) => ({
+    const allAds: SkyAd[] = data.map((row) => ({
       id: row.id,
       brand: row.brand,
       text: row.text,
@@ -31,7 +72,13 @@ export async function GET() {
       priority: row.priority,
     }));
 
-    return NextResponse.json(ads, {
+    const allPlanes = allAds.filter((a) => a.vehicle === "plane");
+    const allBlimps = allAds.filter((a) => a.vehicle === "blimp");
+
+    const planes = rotateAds(allPlanes, MAX_PLANES);
+    const blimps = rotateAds(allBlimps, MAX_BLIMPS);
+
+    return NextResponse.json([...planes, ...blimps], {
       headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" },
     });
   } catch {
