@@ -54,8 +54,8 @@ export function buildAdLink(ad: SkyAd): string | undefined {
 }
 
 /** Fire a tracking beacon to the sky-ads track API (non-blocking). */
-export function trackAdEvent(adId: string, eventType: "impression" | "click" | "cta_click") {
-  const body = JSON.stringify({ ad_id: adId, event_type: eventType });
+export function trackAdEvent(adId: string, eventType: "impression" | "click" | "cta_click", githubLogin?: string) {
+  const body = JSON.stringify({ ad_id: adId, event_type: eventType, ...(githubLogin && { github_login: githubLogin }) });
   if (typeof navigator !== "undefined" && navigator.sendBeacon) {
     navigator.sendBeacon("/api/sky-ads/track", new Blob([body], { type: "application/json" }));
   } else {

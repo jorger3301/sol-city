@@ -876,10 +876,10 @@ function HomeContent() {
         flyHasOverlay={!!selectedBuilding}
         skyAds={skyAds}
         onAdClick={(ad) => {
-          trackAdEvent(ad.id, "click");
+          trackAdEvent(ad.id, "click", authLogin || undefined);
           setClickedAd(ad);
         }}
-        onAdViewed={(adId) => trackAdEvent(adId, "impression")}
+        onAdViewed={(adId) => trackAdEvent(adId, "impression", authLogin || undefined)}
         onFocusInfo={() => {}}
         onBuildingClick={(b) => {
           // Compare pick mode: clicking a second building completes the pair
@@ -2031,7 +2031,7 @@ function HomeContent() {
                       }}
                       onClick={() => {
                         track("sky_ad_click", { ad_id: clickedAd.id, vehicle: clickedAd.vehicle, brand: clickedAd.brand ?? "" });
-                        trackAdEvent(clickedAd.id, "cta_click");
+                        trackAdEvent(clickedAd.id, "cta_click", authLogin || undefined);
                       }}
                     >
                       {isMailto

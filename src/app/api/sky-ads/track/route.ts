@@ -23,20 +23,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
-  let body: { ad_id?: string; event_type?: string };
+  let body: { ad_id?: string; event_type?: string; github_login?: string };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { ad_id, event_type } = body;
+  const { ad_id, event_type, github_login } = body;
   if (!ad_id || typeof ad_id !== "string" || !VALID_EVENTS.has(event_type ?? "")) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
 
   const ipHash = await hashIP(ip);
   const userAgent = request.headers.get("user-agent")?.slice(0, 256) ?? null;
+  const login = typeof github_login === "string" ? github_login.slice(0, 39).toLowerCase() : null;
 
   const sb = getSupabaseAdmin();
   await sb.from("sky_ad_events").insert({
@@ -44,6 +45,7 @@ export async function POST(request: NextRequest) {
     event_type,
     ip_hash: ipHash,
     user_agent: userAgent,
+    github_login: login,
   });
 
   return NextResponse.json({ ok: true }, { status: 201 });
