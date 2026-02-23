@@ -49,3 +49,5 @@ docs/cloudflare-setup.md
 
 # claude code local settings
 .claude/
+
+trace/

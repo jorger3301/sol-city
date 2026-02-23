@@ -32,6 +32,83 @@ const WHITE = new THREE.Color("#ffffff");
 // Shared unit box geometry — scaled per building, prevents 300+ geometry allocations
 const SHARED_BOX_GEO = new THREE.BoxGeometry(1, 1, 1);
 
+// ─── Window Atlas ────────────────────────────────────────────
+// ONE 2048x2048 texture with 6 lit-percentage bands of 42 rows each.
+// Buildings clone this and use offset/repeat to pick their unique region.
+const ATLAS_SIZE = 2048;
+const ATLAS_CELL = 8; // 6px window + 2px gap
+const ATLAS_COLS = ATLAS_SIZE / ATLAS_CELL; // 256
+const ATLAS_BAND_ROWS = 42;
+const ATLAS_LIT_PCTS = [0.2, 0.35, 0.5, 0.65, 0.8, 0.95];
+
+// Parse hex/named color to ABGR uint32 for direct pixel writes (little-endian)
+function colorToABGR(hex: string): number {
+  const c = new THREE.Color(hex);
+  return (
+    255 << 24 |
+    (Math.round(c.b * 255) << 16) |
+    (Math.round(c.g * 255) << 8) |
+    Math.round(c.r * 255)
+  );
+}
+
+export function createWindowAtlas(colors: BuildingColors): THREE.CanvasTexture {
+  const WS = 6;
+  const canvas = document.createElement("canvas");
+  canvas.width = ATLAS_SIZE;
+  canvas.height = ATLAS_SIZE;
+  const ctx = canvas.getContext("2d")!;
+
+  // Use ImageData + Uint32Array for direct pixel writes (10-50x faster than fillRect)
+  const imageData = ctx.createImageData(ATLAS_SIZE, ATLAS_SIZE);
+  const buf32 = new Uint32Array(imageData.data.buffer);
+
+  const faceABGR = colorToABGR(colors.face);
+  const litABGRs = colors.windowLit.map(colorToABGR);
+  const offABGR = colorToABGR(colors.windowOff);
+
+  // Fill background with face color
+  buf32.fill(faceABGR);
+
+  let s = 42;
+  const rand = () => {
+    s = (s * 16807) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+
+  for (let band = 0; band < ATLAS_LIT_PCTS.length; band++) {
+    const litPct = ATLAS_LIT_PCTS[band];
+    const bandStart = band * ATLAS_BAND_ROWS;
+    for (let r = 0; r < ATLAS_BAND_ROWS; r++) {
+      const rowY = (bandStart + r) * ATLAS_CELL;
+      for (let c = 0; c < ATLAS_COLS; c++) {
+        const px = c * ATLAS_CELL;
+        const abgr = rand() < litPct
+          ? litABGRs[Math.floor(rand() * litABGRs.length)]
+          : offABGR;
+        // Write WS×WS pixel block directly
+        for (let dy = 0; dy < WS; dy++) {
+          const rowOffset = (rowY + dy) * ATLAS_SIZE + px;
+          for (let dx = 0; dx < WS; dx++) {
+            buf32[rowOffset + dx] = abgr;
+          }
+        }
+      }
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.flipY = false;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.NearestFilter;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 function createWindowTexture(
   rows: number,
   cols: number,
@@ -393,43 +470,62 @@ function BuildingItemEffects({ building, accentColor, focused }: { building: Cit
 interface Props {
   building: CityBuilding;
   colors: BuildingColors;
+  atlasTexture: THREE.CanvasTexture;
+  introMode?: boolean;
   focused?: boolean;
   dimmed?: boolean;
   accentColor?: string;
   onClick?: (building: CityBuilding) => void;
 }
 
-export default function Building3D({ building, colors, focused, dimmed, accentColor, onClick }: Props) {
+export default function Building3D({ building, colors, atlasTexture, introMode, focused, dimmed, accentColor, onClick }: Props) {
   const groupRef = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const spriteRef = useRef<THREE.Sprite>(null);
 
   const textures = useMemo(() => {
     const seed =
-      building.login.split("").reduce((a, c) => a + c.charCodeAt(0), 0) *
-      137;
-    // custom_color overrides building face color
-    const faceColor = building.custom_color ?? colors.face;
-    const front = createWindowTexture(
-      building.floors,
-      building.windowsPerFloor,
-      building.litPercentage,
-      seed,
-      colors.windowLit,
-      colors.windowOff,
-      faceColor
-    );
-    const side = createWindowTexture(
-      building.floors,
-      building.sideWindowsPerFloor,
-      building.litPercentage,
-      seed + 7919,
-      colors.windowLit,
-      colors.windowOff,
-      faceColor
-    );
+      building.login.split("").reduce((a, c) => a + c.charCodeAt(0), 0) * 137;
+
+    // Custom color buildings: per-building canvas textures (rare, <5%)
+    if (building.custom_color) {
+      const front = createWindowTexture(
+        building.floors,
+        building.windowsPerFloor,
+        building.litPercentage,
+        seed,
+        colors.windowLit,
+        colors.windowOff,
+        building.custom_color
+      );
+      const side = createWindowTexture(
+        building.floors,
+        building.sideWindowsPerFloor,
+        building.litPercentage,
+        seed + 7919,
+        colors.windowLit,
+        colors.windowOff,
+        building.custom_color
+      );
+      return { front, side };
+    }
+
+    // Atlas-based textures (lightweight clones, shared GPU source)
+    const bandIndex = Math.min(5, Math.max(0, Math.round(building.litPercentage * 5)));
+    const bandRowOffset = bandIndex * ATLAS_BAND_ROWS;
+
+    const frontColStart = Math.abs(seed % Math.max(1, ATLAS_COLS - building.windowsPerFloor));
+    const front = atlasTexture.clone();
+    front.offset.set(frontColStart / ATLAS_COLS, bandRowOffset / ATLAS_COLS);
+    front.repeat.set(building.windowsPerFloor / ATLAS_COLS, building.floors / ATLAS_COLS);
+
+    const sideColStart = Math.abs((seed + 7919) % Math.max(1, ATLAS_COLS - building.sideWindowsPerFloor));
+    const side = atlasTexture.clone();
+    side.offset.set(sideColStart / ATLAS_COLS, bandRowOffset / ATLAS_COLS);
+    side.repeat.set(building.sideWindowsPerFloor / ATLAS_COLS, building.floors / ATLAS_COLS);
+
     return { front, side };
-  }, [building, colors]);
+  }, [building, colors, atlasTexture]);
 
   useEffect(() => {
     return () => {
@@ -454,34 +550,33 @@ export default function Building3D({ building, colors, focused, dimmed, accentCo
         roughness: 0.85,
         metalness: 0,
       });
-    return [
-      make(textures.side),
-      make(textures.side),
-      roof,
-      roof,
-      make(textures.front),
-      make(textures.front),
-    ];
+    // Reuse material instances for opposite faces (5 allocs -> 3)
+    const side = make(textures.side);
+    const front = make(textures.front);
+    return [side, side, roof, roof, front, front];
   }, [textures, colors.roof]);
 
+  // Defer label creation until intro is done (saves 160KB+ canvas work per building)
   const labelTexture = useMemo(
-    () => createFarLabel(building),
-    [building]
+    () => introMode ? null : createFarLabel(building),
+    [building, introMode]
   );
 
   useEffect(() => {
-    return () => labelTexture.dispose();
+    return () => { labelTexture?.dispose(); };
   }, [labelTexture]);
 
   const labelMaterial = useMemo(
     () =>
-      new THREE.SpriteMaterial({
-        map: labelTexture,
-        transparent: true,
-        depthTest: true,
-        sizeAttenuation: true,
-        fog: true,
-      }),
+      labelTexture
+        ? new THREE.SpriteMaterial({
+            map: labelTexture,
+            transparent: true,
+            depthTest: true,
+            sizeAttenuation: true,
+            fog: true,
+          })
+        : null,
     [labelTexture]
   );
 
@@ -489,7 +584,7 @@ export default function Building3D({ building, colors, focused, dimmed, accentCo
   useEffect(() => {
     return () => {
       for (const mat of materials) mat.dispose();
-      labelMaterial.dispose();
+      labelMaterial?.dispose();
     };
   }, [materials, labelMaterial]);
 
@@ -500,7 +595,9 @@ export default function Building3D({ building, colors, focused, dimmed, accentCo
       mat.opacity = dimmed ? 0.55 : 1;
       mat.emissiveIntensity = dimmed ? 0.3 : (mat.map ? 2.0 : 1.5);
     }
-    labelMaterial.opacity = focused ? 0 : dimmed ? 0.15 : 1;
+    if (labelMaterial) {
+      labelMaterial.opacity = focused ? 0 : dimmed ? 0.15 : 1;
+    }
     if (spriteRef.current) spriteRef.current.visible = !focused;
     // Reset group visibility when un-dimming
     if (!dimmed && groupRef.current) {
@@ -516,20 +613,22 @@ export default function Building3D({ building, colors, focused, dimmed, accentCo
         geometry={SHARED_BOX_GEO}
         scale={[building.width, 0.001, building.depth]}
         dispose={null}
-        onClick={(e) => {
+        onClick={introMode ? undefined : (e) => {
           e.stopPropagation();
           onClick?.(building);
         }}
-        onPointerOver={() => { document.body.style.cursor = "pointer"; }}
-        onPointerOut={() => { document.body.style.cursor = "auto"; }}
+        onPointerOver={introMode ? undefined : () => { document.body.style.cursor = "pointer"; }}
+        onPointerOut={introMode ? undefined : () => { document.body.style.cursor = "auto"; }}
       />
 
-      <sprite
-        ref={spriteRef}
-        material={labelMaterial}
-        position={[0, building.height + 20, 0]}
-        scale={[32, 5, 1]}
-      />
+      {labelMaterial && (
+        <sprite
+          ref={spriteRef}
+          material={labelMaterial}
+          position={[0, building.height + 20, 0]}
+          scale={[32, 5, 1]}
+        />
+      )}
 
       <BuildingRiseAnimation
         height={building.height}
@@ -537,12 +636,14 @@ export default function Building3D({ building, colors, focused, dimmed, accentCo
         spriteRef={spriteRef}
       />
 
-      {building.claimed && <ClaimedGlow height={building.height} width={building.width} depth={building.depth} />}
+      {/* Skip heavy effects during intro - camera moves too fast to see them */}
+      {!introMode && building.claimed && <ClaimedGlow height={building.height} width={building.width} depth={building.depth} />}
 
-      {focused && <FocusBeacon height={building.height} width={building.width} depth={building.depth} accentColor={accentColor ?? "#c8e64a"} />}
+      {!introMode && focused && <FocusBeacon height={building.height} width={building.width} depth={building.depth} accentColor={accentColor ?? "#c8e64a"} />}
 
-      {/* Loadout-aware effect rendering */}
-      <BuildingItemEffects building={building} accentColor={accentColor ?? colors.accent ?? "#c8e64a"} focused={focused} />
+      {!introMode && (
+        <BuildingItemEffects building={building} accentColor={accentColor ?? colors.accent ?? "#c8e64a"} focused={focused} />
+      )}
     </group>
   );
 }

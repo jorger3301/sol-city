@@ -15,8 +15,8 @@ interface Props {
 }
 
 async function getDeveloper(username: string) {
-  const supabase = await createServerSupabase();
-  const { data } = await supabase
+  const sb = getSupabaseAdmin();
+  const { data } = await sb
     .from("developers")
     .select("*")
     .eq("github_login", username.toLowerCase())
