@@ -124,13 +124,17 @@ function spiralCoord(index: number): [number, number] {
 
 // ─── City Layout ─────────────────────────────────────────────
 
-const BLOCK_SIZE_DOWNTOWN = 3; // 3x3 grid inside block
-const BLOCK_SIZE_SUBURB = 2; // 2x2 grid
-const DOWNTOWN_RANK_LIMIT = 500;
-const STREET_WIDTH = 45;
-const AVENUE_WIDTH = 80;
-const AVENUE_INTERVAL = 4; // avenue every 4 blocks
-const CELL_SPACING = 50; // spacing between buildings within a block
+const BLOCK_SIZE = 4;     // 4x4 buildings per city block
+const LOT_W = 46;        // lot width  (X axis) — fits max building (40) + 3 each side
+const LOT_D = 40;        // lot depth  (Z axis) — fits max building (34) + 3 each side
+const ALLEY_W = 4;       // narrow gap between buildings within a block
+const STREET_W = 25;     // street between blocks
+const AVENUE_W = 50;     // wide avenue (every AVENUE_EVERY-th gap)
+const AVENUE_EVERY = 4;  // avenue frequency
+
+// Derived: total block footprint
+const BLOCK_FOOTPRINT_X = BLOCK_SIZE * LOT_W + (BLOCK_SIZE - 1) * ALLEY_W; // 4*46 + 3*4 = 196
+const BLOCK_FOOTPRINT_Z = BLOCK_SIZE * LOT_D + (BLOCK_SIZE - 1) * ALLEY_W; // 4*40 + 3*4 = 172
 
 // Spiral slots that become plazas instead of building blocks
 const PLAZA_SLOTS = new Set([3, 7, 12, 18, 25, 33, 42, 52, 63, 75, 88, 102]);
@@ -272,7 +276,19 @@ export interface CityBridge {
   width: number;
 }
 
-const RIVER_WIDTH = 60;
+const RIVER_WIDTH = 40;
+
+// Compute block center position along one axis.
+// Each block occupies `footprint` units; between blocks there's a street.
+// Every AVENUE_EVERY-th gap is an avenue (wider).
+function blockAxisPos(idx: number, footprint: number): number {
+  if (idx === 0) return 0;
+  const abs = Math.abs(idx);
+  const sign = idx >= 0 ? 1 : -1;
+  const numAvenues = Math.floor(abs / AVENUE_EVERY);
+  const numStreets = abs - numAvenues;
+  return sign * (abs * footprint + numStreets * STREET_W + numAvenues * AVENUE_W);
+}
 
 export function generateCityLayout(devs: DeveloperRecord[]): {
   buildings: CityBuilding[];
@@ -288,81 +304,69 @@ export function generateCityLayout(devs: DeveloperRecord[]): {
   const maxStars = devs.reduce((max, d) => Math.max(max, d.total_stars), 1);
   const maxContribV2 = devs.reduce((max, d) => Math.max(max, d.contributions_total ?? 0), 1);
 
-  // River runs along Z axis, cutting through X
-  const blockSpacing0 = CELL_SPACING * BLOCK_SIZE_DOWNTOWN + STREET_WIDTH;
-  const riverX = -(blockSpacing0 * 1.5); // between spiral ring 1 and 2
-  const riverMinX = riverX;
-  const riverMaxX = riverX + RIVER_WIDTH;
+  // River runs along Z axis, between block col -1 and col -2.
+  // Instead of skipping blocks, we shift all blocks beyond the river further out
+  // to create exactly RIVER_WIDTH of space.
+  const RIVER_COL = -1; // river sits after this block column (between -1 and -2)
+  const riverShift = RIVER_WIDTH - STREET_W; // extra space beyond normal street gap
+  const block1Edge = blockAxisPos(RIVER_COL, BLOCK_FOOTPRINT_X) - BLOCK_FOOTPRINT_X / 2; // left edge of block -1
+  const riverMaxX = block1Edge;
+  const riverMinX = riverMaxX - RIVER_WIDTH;
+  const riverX = riverMinX;
 
   let devIndex = 0;
   let spiralIndex = 0;
 
   // Track block positions for road marking generation
-  const blockCenters: { cx: number; cz: number; footprint: number; bx: number; by: number }[] = [];
+  const blockCenters: { cx: number; cz: number; bx: number; by: number }[] = [];
 
   while (devIndex < devs.length) {
-    const isDowntown = devIndex < DOWNTOWN_RANK_LIMIT;
-    const blockSize = isDowntown ? BLOCK_SIZE_DOWNTOWN : BLOCK_SIZE_SUBURB;
-
-    // Get block position in spiral
     const [bx, by] = spiralCoord(spiralIndex);
+    let blockCX = blockAxisPos(bx, BLOCK_FOOTPRINT_X);
+    const blockCZ = blockAxisPos(by, BLOCK_FOOTPRINT_Z);
 
-    const blockSpacing = CELL_SPACING * blockSize + STREET_WIDTH;
-
-    const avenueExtraX =
-      Math.floor(Math.abs(bx) / AVENUE_INTERVAL) *
-      (AVENUE_WIDTH - STREET_WIDTH) *
-      Math.sign(bx || 1);
-    const avenueExtraZ =
-      Math.floor(Math.abs(by) / AVENUE_INTERVAL) *
-      (AVENUE_WIDTH - STREET_WIDTH) *
-      Math.sign(by || 1);
-
-    const blockCenterX = bx * blockSpacing + avenueExtraX;
-    const blockCenterZ = by * blockSpacing + avenueExtraZ;
-
-    // Is this a plaza slot?
-    if (PLAZA_SLOTS.has(spiralIndex)) {
-      plazas.push({
-        position: [blockCenterX, 0, blockCenterZ],
-        size: CELL_SPACING * blockSize * 0.8,
-        variant: seededRandom(spiralIndex * 997),
-      });
-      spiralIndex++;
-      continue; // skip this slot, don't consume devs
+    // Shift blocks on the far side of the river to make room
+    if (bx <= RIVER_COL - 1) {
+      blockCX -= riverShift;
     }
 
-    // Skip entire block if it overlaps the river (don't consume devs)
-    const blockHalf = CELL_SPACING * blockSize / 2 + 20;
-    if (blockCenterX + blockHalf > riverMinX && blockCenterX - blockHalf < riverMaxX) {
+    // Plaza check
+    if (PLAZA_SLOTS.has(spiralIndex)) {
+      plazas.push({
+        position: [blockCX, 0, blockCZ],
+        size: Math.min(BLOCK_FOOTPRINT_X, BLOCK_FOOTPRINT_Z) * 0.8,
+        variant: seededRandom(spiralIndex * 997),
+      });
       spiralIndex++;
       continue;
     }
 
-    const devsPerBlock = blockSize * blockSize;
+    // Fill this block with up to BLOCK_SIZE x BLOCK_SIZE buildings
+    const devsPerBlock = BLOCK_SIZE * BLOCK_SIZE;
     const blockDevs = devs.slice(devIndex, devIndex + devsPerBlock);
 
     for (let i = 0; i < blockDevs.length; i++) {
       const dev = blockDevs[i];
-      const localRow = Math.floor(i / blockSize);
-      const localCol = i % blockSize;
+      const localRow = Math.floor(i / BLOCK_SIZE);
+      const localCol = i % BLOCK_SIZE;
 
-      const offsetX = (localCol - (blockSize - 1) / 2) * CELL_SPACING;
-      const offsetZ = (localRow - (blockSize - 1) / 2) * CELL_SPACING;
+      // Position within block: lots separated by ALLEY_W
+      const cellStepX = LOT_W + ALLEY_W;
+      const cellStepZ = LOT_D + ALLEY_W;
+      const offsetX = (localCol - (BLOCK_SIZE - 1) / 2) * cellStepX;
+      const offsetZ = (localRow - (BLOCK_SIZE - 1) / 2) * cellStepZ;
 
-      const posX = blockCenterX + offsetX;
-      const posZ = blockCenterZ + offsetZ;
+      const posX = blockCX + offsetX;
+      const posZ = blockCZ + offsetZ;
 
       let height: number, composite: number, w: number, d: number, litPercentage: number;
 
       if (isV2Dev(dev)) {
-        // V2 path: multidimensional formulas
         ({ height, composite } = calcHeightV2(dev, maxContribV2, maxStars));
         w = calcWidthV2(dev);
         d = calcDepthV2(dev);
         litPercentage = calcLitPercentageV2(dev);
       } else {
-        // V1 path: original formulas (unchanged)
         ({ height, composite } = calcHeight(dev.contributions, dev.total_stars, dev.public_repos, maxContrib, maxStars));
         const seed1 = hashStr(dev.github_login);
         const repoFactor = Math.min(1, dev.public_repos / 100);
@@ -412,35 +416,33 @@ export function generateCityLayout(devs: DeveloperRecord[]): {
     }
 
     // ── Per-block decorations ──
-    const blockFootprint = CELL_SPACING * blockSize;
 
-    // Sidewalk around block (skip if block overlaps river)
-    const blockLeft = blockCenterX - blockFootprint / 2 - 4;
-    const blockRight = blockCenterX + blockFootprint / 2 + 4;
-    const blockInRiver = blockRight > riverMinX && blockLeft < riverMaxX;
-
+    // Sidewalk around the entire block
+    const blockInRiver = (blockCX + BLOCK_FOOTPRINT_X / 2 + 4) > riverMinX &&
+                         (blockCX - BLOCK_FOOTPRINT_X / 2 - 4) < riverMaxX;
     if (!blockInRiver) {
       decorations.push({
         type: 'sidewalk',
-        position: [blockCenterX, 0.1, blockCenterZ],
+        position: [blockCX, 0.1, blockCZ],
         rotation: 0,
         variant: 0,
-        size: [blockFootprint + 8, blockFootprint + 8],
+        size: [BLOCK_FOOTPRINT_X + 8, BLOCK_FOOTPRINT_Z + 8],
       });
     }
 
-    // Street lamps (2-4 per block)
+    // Street lamps (2-4 per block, on block edges)
     const lampCount = 2 + Math.floor(seededRandom(spiralIndex * 311) * 3);
     for (let li = 0; li < lampCount; li++) {
       const seed = spiralIndex * 5000 + li;
       const edge = Math.floor(seededRandom(seed) * 4);
-      const along = (seededRandom(seed + 50) - 0.5) * blockFootprint;
-      let lx = blockCenterX, lz = blockCenterZ;
-      if (edge === 0) { lz -= blockFootprint / 2 + 4; lx += along; }
-      else if (edge === 1) { lx += blockFootprint / 2 + 4; lz += along; }
-      else if (edge === 2) { lz += blockFootprint / 2 + 4; lx += along; }
-      else { lx -= blockFootprint / 2 + 4; lz += along; }
-      if (lx > riverMinX - 5 && lx < riverMaxX + 5) continue; // skip river zone
+      const alongX = (seededRandom(seed + 50) - 0.5) * BLOCK_FOOTPRINT_X;
+      const alongZ = (seededRandom(seed + 50) - 0.5) * BLOCK_FOOTPRINT_Z;
+      let lx = blockCX, lz = blockCZ;
+      if (edge === 0) { lz -= BLOCK_FOOTPRINT_Z / 2 + 4; lx += alongX; }
+      else if (edge === 1) { lx += BLOCK_FOOTPRINT_X / 2 + 4; lz += alongZ; }
+      else if (edge === 2) { lz += BLOCK_FOOTPRINT_Z / 2 + 4; lx += alongX; }
+      else { lx -= BLOCK_FOOTPRINT_X / 2 + 4; lz += alongZ; }
+      if (lx > riverMinX - 5 && lx < riverMaxX + 5) continue;
       decorations.push({
         type: 'streetLamp',
         position: [lx, 0, lz],
@@ -449,17 +451,14 @@ export function generateCityLayout(devs: DeveloperRecord[]): {
       });
     }
 
-    // Parked cars (0-1 per building, ~50% chance)
-    const blockBuildingCount = buildings.length;
+    // Parked cars (~40% per building, on the street side)
     for (let bi = 0; bi < blockDevs.length; bi++) {
-      const bldIdx = blockBuildingCount - blockDevs.length + bi;
-      if (bldIdx < 0 || bldIdx >= buildings.length) continue;
-      const bld = buildings[bldIdx];
+      const bld = buildings[buildings.length - blockDevs.length + bi];
       const carSeed = hashStr(blockDevs[bi].github_login) + 777;
-      if (seededRandom(carSeed) > 0.5) {
+      if (seededRandom(carSeed) > 0.6) {
         const side = seededRandom(carSeed + 1) > 0.5 ? 1 : -1;
-        const carX = bld.position[0] + side * (bld.width / 2 + 4);
-        if (carX > riverMinX - 5 && carX < riverMaxX + 5) continue; // skip river zone
+        const carX = bld.position[0] + side * (bld.width / 2 + 6);
+        if (carX > riverMinX - 5 && carX < riverMaxX + 5) continue;
         decorations.push({
           type: 'car',
           position: [carX, 0, bld.position[2]],
@@ -470,17 +469,18 @@ export function generateCityLayout(devs: DeveloperRecord[]): {
     }
 
     // Street trees (1-2 per block edge)
-    const streetTreeCount = 1 + Math.floor(seededRandom(spiralIndex * 421) * 2);
-    for (let ti = 0; ti < streetTreeCount; ti++) {
+    const treeCount = 1 + Math.floor(seededRandom(spiralIndex * 421) * 2);
+    for (let ti = 0; ti < treeCount; ti++) {
       const seed = spiralIndex * 6000 + ti;
       const edge = Math.floor(seededRandom(seed) * 4);
-      const along = (seededRandom(seed + 50) - 0.5) * blockFootprint * 0.8;
-      let tx = blockCenterX, tz = blockCenterZ;
-      if (edge === 0) { tz -= blockFootprint / 2 + 6; tx += along; }
-      else if (edge === 1) { tx += blockFootprint / 2 + 6; tz += along; }
-      else if (edge === 2) { tz += blockFootprint / 2 + 6; tx += along; }
-      else { tx -= blockFootprint / 2 + 6; tz += along; }
-      if (tx > riverMinX - 5 && tx < riverMaxX + 5) continue; // skip river zone
+      const alongX = (seededRandom(seed + 50) - 0.5) * BLOCK_FOOTPRINT_X * 0.8;
+      const alongZ = (seededRandom(seed + 50) - 0.5) * BLOCK_FOOTPRINT_Z * 0.8;
+      let tx = blockCX, tz = blockCZ;
+      if (edge === 0) { tz -= BLOCK_FOOTPRINT_Z / 2 + 6; tx += alongX; }
+      else if (edge === 1) { tx += BLOCK_FOOTPRINT_X / 2 + 6; tz += alongZ; }
+      else if (edge === 2) { tz += BLOCK_FOOTPRINT_Z / 2 + 6; tx += alongX; }
+      else { tx -= BLOCK_FOOTPRINT_X / 2 + 6; tz += alongZ; }
+      if (tx > riverMinX - 5 && tx < riverMaxX + 5) continue;
       decorations.push({
         type: 'tree',
         position: [tx, 0, tz],
@@ -489,8 +489,7 @@ export function generateCityLayout(devs: DeveloperRecord[]): {
       });
     }
 
-    blockCenters.push({ cx: blockCenterX, cz: blockCenterZ, footprint: blockFootprint, bx, by });
-
+    blockCenters.push({ cx: blockCX, cz: blockCZ, bx, by });
     devIndex += blockDevs.length;
     spiralIndex++;
   }
@@ -500,27 +499,23 @@ export function generateCityLayout(devs: DeveloperRecord[]): {
   const DASH_GAP = 8;
   const DASH_STEP = DASH_LENGTH + DASH_GAP;
 
-  // Build a lookup of block positions by grid coordinate
   const blockByGrid = new Map<string, typeof blockCenters[0]>();
   for (const b of blockCenters) {
     blockByGrid.set(`${b.bx},${b.by}`, b);
   }
 
-  // For each block, generate road markings on the right (+X) and bottom (+Z) edges
   for (const block of blockCenters) {
-    const halfFoot = block.footprint / 2;
+    const halfX = BLOCK_FOOTPRINT_X / 2;
+    const halfZ = BLOCK_FOOTPRINT_Z / 2;
 
-    // Right road (vertical dashes along Z axis) — between this block and the one to the right
-    const rightNeighborKey = `${block.bx + 1},${block.by}`;
-    const rightNeighbor = blockByGrid.get(rightNeighborKey);
-    if (rightNeighbor) {
-      const roadCenterX = (block.cx + halfFoot + rightNeighbor.cx - rightNeighbor.footprint / 2) / 2;
-      const roadMinZ = Math.min(block.cz, rightNeighbor.cz) - Math.max(halfFoot, rightNeighbor.footprint / 2);
-      const roadMaxZ = Math.max(block.cz, rightNeighbor.cz) + Math.max(halfFoot, rightNeighbor.footprint / 2);
-
-      // Skip if road crosses river
+    // Right road (vertical dashes along Z) — between this block and bx+1
+    const right = blockByGrid.get(`${block.bx + 1},${block.by}`);
+    if (right) {
+      const roadCenterX = (block.cx + halfX + right.cx - BLOCK_FOOTPRINT_X / 2) / 2;
       if (!(roadCenterX + 2 > riverMinX && roadCenterX - 2 < riverMaxX)) {
-        for (let z = roadMinZ; z <= roadMaxZ; z += DASH_STEP) {
+        const zMin = Math.min(block.cz, right.cz) - Math.max(halfZ, BLOCK_FOOTPRINT_Z / 2);
+        const zMax = Math.max(block.cz, right.cz) + Math.max(halfZ, BLOCK_FOOTPRINT_Z / 2);
+        for (let z = zMin; z <= zMax; z += DASH_STEP) {
           decorations.push({
             type: 'roadMarking',
             position: [roadCenterX, 0.2, z],
@@ -532,16 +527,13 @@ export function generateCityLayout(devs: DeveloperRecord[]): {
       }
     }
 
-    // Bottom road (horizontal dashes along X axis) — between this block and the one below
-    const bottomNeighborKey = `${block.bx},${block.by + 1}`;
-    const bottomNeighbor = blockByGrid.get(bottomNeighborKey);
-    if (bottomNeighbor) {
-      const roadCenterZ = (block.cz + halfFoot + bottomNeighbor.cz - bottomNeighbor.footprint / 2) / 2;
-      const roadMinX = Math.min(block.cx, bottomNeighbor.cx) - Math.max(halfFoot, bottomNeighbor.footprint / 2);
-      const roadMaxX = Math.max(block.cx, bottomNeighbor.cx) + Math.max(halfFoot, bottomNeighbor.footprint / 2);
-
-      for (let x = roadMinX; x <= roadMaxX; x += DASH_STEP) {
-        // Skip if dash crosses river
+    // Bottom road (horizontal dashes along X) — between this block and by+1
+    const bottom = blockByGrid.get(`${block.bx},${block.by + 1}`);
+    if (bottom) {
+      const roadCenterZ = (block.cz + halfZ + bottom.cz - BLOCK_FOOTPRINT_Z / 2) / 2;
+      const xMin = Math.min(block.cx, bottom.cx) - Math.max(halfX, BLOCK_FOOTPRINT_X / 2);
+      const xMax = Math.max(block.cx, bottom.cx) + Math.max(halfX, BLOCK_FOOTPRINT_X / 2);
+      for (let x = xMin; x <= xMax; x += DASH_STEP) {
         if (x + 2 > riverMinX && x - 2 < riverMaxX) continue;
         decorations.push({
           type: 'roadMarking',
@@ -605,16 +597,16 @@ export function generateCityLayout(devs: DeveloperRecord[]): {
     if (b.position[2] < minZ) minZ = b.position[2];
     if (b.position[2] > maxZ) maxZ = b.position[2];
   }
-  const riverPadding = 80; // small overshoot past last buildings
+  const riverPadding = 80;
   const riverLength = (maxZ - minZ) + riverPadding * 2;
   const riverCenterZ = (minZ + maxZ) / 2;
   const river: CityRiver = { x: riverX, width: RIVER_WIDTH, length: riverLength, centerZ: riverCenterZ };
 
   // ── Bridges (2: one near downtown, one further out) ──
-  const bridgeWidth = RIVER_WIDTH + 20; // extends 10 past each bank
+  const bridgeWidth = RIVER_WIDTH + 20;
   const bridges: CityBridge[] = [
     { position: [riverX + RIVER_WIDTH / 2, 0, 0], width: bridgeWidth },
-    { position: [riverX + RIVER_WIDTH / 2, 0, blockSpacing0 * 3], width: bridgeWidth },
+    { position: [riverX + RIVER_WIDTH / 2, 0, blockAxisPos(3, BLOCK_FOOTPRINT_Z)], width: bridgeWidth },
   ];
 
   return { buildings, plazas, decorations, river, bridges };

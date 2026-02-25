@@ -3,6 +3,7 @@ import { createServerSupabase } from "@/lib/supabase-server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { createCheckoutSession } from "@/lib/stripe";
 import { createPixQrCode } from "@/lib/abacatepay";
+import { createCryptoInvoice } from "@/lib/nowpayments";
 
 // Defense-in-depth: per-user rate limit IN ADDITION to the IP-based
 // middleware rate limit.  This one is keyed by Supabase user ID so it
@@ -65,7 +66,7 @@ export async function POST(request: Request) {
   }
 
   // Parse body
-  let body: { item_id: string; provider: "stripe" | "abacatepay"; gifted_to_login?: string };
+  let body: { item_id: string; provider: "stripe" | "abacatepay" | "nowpayments"; gifted_to_login?: string };
   try {
     body = await request.json();
   } catch {
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
 
   const { item_id, provider, gifted_to_login } = body;
 
-  if (!item_id || !provider || !["stripe", "abacatepay"].includes(provider)) {
+  if (!item_id || !provider || !["stripe", "abacatepay", "nowpayments"].includes(provider)) {
     return NextResponse.json({ error: "Invalid item_id or provider" }, { status: 400 });
   }
 
@@ -250,6 +251,35 @@ export async function POST(request: Request) {
 
       const { url } = await createCheckoutSession(item_id, dev.id, githubLogin, stripeCurrency, user.email, giftedToDevId, gifted_to_login);
       return NextResponse.json({ url, purchase_id: purchase.id });
+    } else if (provider === "nowpayments") {
+      // Crypto via NOWPayments
+      const { data: purchase, error: purchaseError } = await sb
+        .from("purchases")
+        .insert({
+          developer_id: dev.id,
+          item_id,
+          provider: "nowpayments",
+          amount_cents: item.price_usd_cents,
+          currency: "usd",
+          status: "pending",
+          ...(giftedToDevId ? { gifted_to: giftedToDevId } : {}),
+        })
+        .select("id")
+        .single();
+
+      if (purchaseError) {
+        return NextResponse.json({ error: "Failed to create purchase" }, { status: 500 });
+      }
+
+      const { invoiceUrl, invoiceId } = await createCryptoInvoice(item_id, dev.id, githubLogin);
+
+      // Save invoice ID as provider_tx_id so webhook can find this purchase
+      await sb
+        .from("purchases")
+        .update({ provider_tx_id: `${dev.id}:${item_id}` })
+        .eq("id", purchase.id);
+
+      return NextResponse.json({ url: invoiceUrl, purchase_id: purchase.id });
     } else {
       // AbacatePay
       const { data: purchase, error: purchaseError } = await sb
