@@ -3,8 +3,8 @@ import type { AdVehicle } from "./skyAds";
 export type AdCurrency = "usd" | "brl";
 
 // Promo discount multiplier. Set to 1 to disable.
-export const PROMO_DISCOUNT = 1;
-export const PROMO_LABEL = "";
+export const PROMO_DISCOUNT = 0.5;
+export const PROMO_LABEL = "50% off - Git City Launch Week";
 
 export const SKY_AD_PLANS = {
   // Sky Ads
@@ -108,6 +108,8 @@ export function getPriceCents(planId: SkyAdPlanId, currency: AdCurrency): number
 }
 
 export function formatPrice(cents: number, currency: AdCurrency): string {
-  if (currency === "brl") return `R$${(cents / 100).toFixed(0)}`;
-  return `$${(cents / 100).toFixed(0)}`;
+  const value = cents / 100;
+  const formatted = Number.isInteger(value) ? value.toFixed(0) : value.toFixed(2);
+  if (currency === "brl") return `R$${formatted}`;
+  return `$${formatted}`;
 }
