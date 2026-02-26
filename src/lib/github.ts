@@ -68,6 +68,7 @@ export interface CityBuilding {
   current_week_kudos_given: number;
   current_week_kudos_received: number;
   active_raid_tag?: { attacker_login: string; tag_style: string; expires_at: string } | null;
+  rabbit_completed: boolean;
   position: [number, number, number];
   width: number;
   depth: number;
@@ -137,7 +138,7 @@ const BLOCK_FOOTPRINT_X = BLOCK_SIZE * LOT_W + (BLOCK_SIZE - 1) * ALLEY_W; // 4*
 const BLOCK_FOOTPRINT_Z = BLOCK_SIZE * LOT_D + (BLOCK_SIZE - 1) * ALLEY_W; // 4*40 + 3*4 = 172
 
 // Spiral slots that become plazas instead of building blocks
-const PLAZA_SLOTS = new Set([3, 7, 12, 18, 25, 33, 42, 52, 63, 75, 88, 102]);
+const PLAZA_SLOTS = new Set([0, 3, 7, 12, 18, 25, 33, 42, 52, 63, 75, 88, 102]);
 
 const MAX_BUILDING_HEIGHT = 600;
 const MIN_BUILDING_HEIGHT = 10;
@@ -300,7 +301,7 @@ export function generateCityLayout(devs: DeveloperRecord[]): {
   const buildings: CityBuilding[] = [];
   const plazas: CityPlaza[] = [];
   const decorations: CityDecoration[] = [];
-  const maxContrib = devs[0]?.contributions || 1;
+  const maxContrib = devs.reduce((max, d) => Math.max(max, d.contributions), 1);
   const maxStars = devs.reduce((max, d) => Math.max(max, d.total_stars), 1);
   const maxContribV2 = devs.reduce((max, d) => Math.max(max, d.contributions_total ?? 0), 1);
 
@@ -404,6 +405,7 @@ export function generateCityLayout(devs: DeveloperRecord[]): {
         current_week_kudos_given: (dev as unknown as Record<string, unknown>).current_week_kudos_given as number ?? 0,
         current_week_kudos_received: (dev as unknown as Record<string, unknown>).current_week_kudos_received as number ?? 0,
         active_raid_tag: (dev as unknown as Record<string, unknown>).active_raid_tag as CityBuilding["active_raid_tag"] ?? null,
+        rabbit_completed: (dev as unknown as Record<string, unknown>).rabbit_completed as boolean ?? false,
         position: [posX, 0, posZ],
         width: w,
         depth: d,

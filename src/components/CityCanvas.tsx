@@ -14,6 +14,8 @@ import type { SkyAd } from "@/lib/skyAds";
 import RaidSequence3D, { VehicleMesh } from "./RaidSequence3D";
 import type { RaidPhase } from "@/lib/useRaidSequence";
 import type { RaidExecuteResponse } from "@/lib/raid";
+import FounderSpire from "./FounderSpire";
+import WhiteRabbit from "./WhiteRabbit";
 
 // ─── Theme Definitions ───────────────────────────────────────
 
@@ -206,29 +208,37 @@ useGLTF.preload("/models/paper-plane.glb");
 
 const INTRO_DURATION = 14; // seconds
 
+// Founder building sits at roughly (146, h, -66) in the first block.
+// Camera target: founder building top.
+const FOUNDER_X = 146;
+const FOUNDER_Z = -66;
+const TARGET_X = FOUNDER_X;
+const TARGET_Z = FOUNDER_Z;
+const TARGET_Y = 450;
+
 // Arc sweep: camera arcs ~180° around the city
-// Far left in fog -> descends through buildings -> rises for panoramic reveal
+// Far left in fog -> descends through buildings -> rises to wide panorama centered on founder
 const INTRO_WAYPOINTS: [number, number, number][] = [
-  [-1400, 400, 1600],  // WP0: Far, high, left - city hidden in fog
-  [-900,  320, 1100],  // WP1: Descending, silhouette appears
-  [-550,  280, 800],   // WP2: Ad plane level, buildings becoming clear
-  [-250,  240, 550],   // WP3: Skirting the city edge, above rooftops
-  [50,    220, 450],   // WP4: Alongside buildings, above skyline
-  [250,   330, 520],   // WP5: Rising, crossing to the right
-  [350,   400, 560],   // WP6: Dramatic pullback, city revealing
-  [400,   450, 600],   // WP7: Final orbit position (high panorama)
+  [-1600, 800, 1800],   // WP0: Far, high, left - city hidden in fog
+  [-1000, 700, 1300],   // WP1: Descending, silhouette appears
+  [-600,  600, 900],    // WP2: Ad plane level, buildings becoming clear
+  [-200,  550, 650],    // WP3: Skirting the city edge
+  [200,   600, 600],    // WP4: Crossing over
+  [500,   700, 700],    // WP5: Rising, pulling back
+  [700,   800, 900],    // WP6: Dramatic pullback
+  [800,   850, 1000],   // WP7: Final orbit position (wide panorama)
 ];
 
-// Look targets smoothly converge toward city center
+// Look targets smoothly converge toward the founder building top
 const INTRO_LOOK_TARGETS: [number, number, number][] = [
-  [100,  60,  -200],  // WP0: Toward distant city center
-  [60,   50,  -100],  // WP1: Tracking center on approach
-  [30,   45,  -50],   // WP2: Narrowing in on buildings
-  [10,   40,  -20],   // WP3: Almost centered
-  [0,    35,  0],     // WP4: Dead center, between buildings
-  [0,    35,  0],     // WP5: Holding center as we rise
-  [0,    30,  0],     // WP6: Slight down for reveal drama
-  [0,    30,  0],     // WP7: Final orbit look target
+  [100,      300,      -200],      // WP0: Toward distant city, already high
+  [TARGET_X, 380,      TARGET_Z],  // WP1: Rising toward founder top
+  [TARGET_X, TARGET_Y, TARGET_Z],  // WP2: Locking on
+  [TARGET_X, TARGET_Y, TARGET_Z],  // WP3: Holding
+  [TARGET_X, TARGET_Y, TARGET_Z],  // WP4: Holding
+  [TARGET_X, TARGET_Y, TARGET_Z],  // WP5: Holding
+  [TARGET_X, TARGET_Y, TARGET_Z],  // WP6: Holding
+  [TARGET_X, TARGET_Y, TARGET_Z],  // WP7: Final look target
 ];
 
 // Smootherstep (Perlin): zero velocity AND zero acceleration at both ends
@@ -1332,10 +1342,10 @@ function OrbitScene({ buildings, focusedBuilding, focusedBuildingB }: { building
   const controlsRef = useRef<any>(null);
   const { camera } = useThree();
 
-  // Reset camera on mount
+  // Reset camera on mount — wide panorama centered on founder area
   useEffect(() => {
-    camera.position.set(400, 450, 600);
-    camera.lookAt(0, 30, 0);
+    camera.position.set(800, 700, 1000);
+    camera.lookAt(TARGET_X, TARGET_Y, TARGET_Z);
   }, [camera]);
 
   return (
@@ -1346,9 +1356,9 @@ function OrbitScene({ buildings, focusedBuilding, focusedBuildingB }: { building
         enableDamping
         dampingFactor={0.06}
         minDistance={40}
-        maxDistance={1600}
+        maxDistance={2500}
         maxPolarAngle={Math.PI / 2.1}
-        target={[0, 30, 0]}
+        target={[TARGET_X, TARGET_Y, TARGET_Z]}
         autoRotate
         autoRotateSpeed={0.15}
       />
@@ -1388,9 +1398,15 @@ interface Props {
   raidAttacker?: CityBuilding | null;
   raidDefender?: CityBuilding | null;
   onRaidPhaseComplete?: (phase: RaidPhase) => void;
+  onLandmarkClick?: () => void;
+  rabbitSighting?: number | null;
+  onRabbitCaught?: () => void;
 }
 
-export default function CityCanvas({ buildings, plazas, decorations, river, bridges, flyMode, flyVehicle, onExitFly, themeIndex, onHud, onPause, focusedBuilding, focusedBuildingB, accentColor, onClearFocus, onBuildingClick, onFocusInfo, flyPauseSignal, flyHasOverlay, skyAds, onAdClick, onAdViewed, introMode, onIntroEnd, raidPhase, raidData, raidAttacker, raidDefender, onRaidPhaseComplete }: Props) {
+// Plaza indices for rabbit sightings (progressively further from center)
+const RABBIT_PLAZA_INDICES = [1, 2, 4, 7, 10]; // plazas[1]=slot3, [2]=slot7, [4]=slot18, [7]=slot42, [10]=slot75
+
+export default function CityCanvas({ buildings, plazas, decorations, river, bridges, flyMode, flyVehicle, onExitFly, themeIndex, onHud, onPause, focusedBuilding, focusedBuildingB, accentColor, onClearFocus, onBuildingClick, onFocusInfo, flyPauseSignal, flyHasOverlay, skyAds, onAdClick, onAdViewed, introMode, onIntroEnd, raidPhase, raidData, raidAttacker, raidDefender, onRaidPhaseComplete, onLandmarkClick, rabbitSighting, onRabbitCaught }: Props) {
   const t = THEMES[themeIndex] ?? THEMES[0];
   const showPerf = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("perf");
 
@@ -1439,6 +1455,22 @@ export default function CityCanvas({ buildings, plazas, decorations, river, brid
       {!introMode && flyMode && <AirplaneFlight onExit={onExitFly} onHud={onHud ?? (() => {})} onPause={onPause ?? (() => {})} pauseSignal={flyPauseSignal} hasOverlay={flyHasOverlay} vehicleType={flyVehicle} />}
 
       <Ground key={`ground-${themeIndex}`} color={t.groundColor} grid1={t.grid1} grid2={t.grid2} />
+
+      <FounderSpire onClick={onLandmarkClick ?? (() => {})} />
+
+      {rabbitSighting && rabbitSighting >= 1 && rabbitSighting <= 5 && (() => {
+        const plazaIdx = RABBIT_PLAZA_INDICES[rabbitSighting - 1];
+        const plaza = plazas[plazaIdx];
+        if (!plaza) return null;
+        const pos: [number, number, number] = [plaza.position[0], 0.5, plaza.position[2]];
+        return (
+          <WhiteRabbit
+            position={pos}
+            visible={true}
+            onCaught={onRabbitCaught ?? (() => {})}
+          />
+        );
+      })()}
 
       {river && (
         <>

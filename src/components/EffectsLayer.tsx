@@ -100,7 +100,7 @@ export default function EffectsLayer({
       const b = buildings[idx];
 
       // Only buildings that have something to render
-      const hasEffects = b.claimed || (b.owned_items && b.owned_items.length > 0) || (b.app_streak > 0) || !!b.active_raid_tag;
+      const hasEffects = b.claimed || (b.owned_items && b.owned_items.length > 0) || (b.app_streak > 0) || !!b.active_raid_tag || b.rabbit_completed;
       if (!hasEffects) continue;
 
       const dx = cx - b.position[0];

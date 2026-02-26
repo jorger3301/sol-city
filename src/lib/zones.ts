@@ -45,6 +45,7 @@ export const ITEM_NAMES: Record<string, string> = {
   raid_boost_small: "War Paint",
   raid_boost_medium: "Battle Armor",
   raid_boost_large: "EMP Device",
+  white_rabbit: "White Rabbit",
 };
 
 // Correct mapping: item_id → achievement that unlocks it (from migration 007 seed)
@@ -56,6 +57,7 @@ export const ACHIEVEMENT_ITEMS: Record<string, { achievement: string; label: str
   rooftop_garden: { achievement: "architect", label: "Architect (75+ repos)" },
   spotlight: { achievement: "rising_star", label: "Rising Star (100+ stars)" },
   helipad: { achievement: "recruiter", label: "Recruiter (10+ referrals)" },
+  white_rabbit: { achievement: "white_rabbit", label: "Found the White Rabbit" },
 };
 
 export const ITEM_EMOJIS: Record<string, string> = {
@@ -75,6 +77,7 @@ export const ITEM_EMOJIS: Record<string, string> = {
   raid_boost_small: "🎨",
   raid_boost_medium: "🛡️",
   raid_boost_large: "💣",
+  white_rabbit: "🐇",
 };
 
 export const FACES_ITEMS = ["custom_color", "billboard", "led_banner"];

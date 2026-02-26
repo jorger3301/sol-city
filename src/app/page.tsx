@@ -23,6 +23,9 @@ import { useStreakCheckin } from "@/lib/useStreakCheckin";
 import { useRaidSequence } from "@/lib/useRaidSequence";
 import RaidPreviewModal from "@/components/RaidPreviewModal";
 import RaidOverlay from "@/components/RaidOverlay";
+import PillModal from "@/components/PillModal";
+import FounderMessage from "@/components/FounderMessage";
+import RabbitCompletion from "@/components/RabbitCompletion";
 import { DEFAULT_SKY_ADS, buildAdLink, trackAdEvent } from "@/lib/skyAds";
 import { track } from "@vercel/analytics";
 import {
@@ -68,6 +71,7 @@ const ACHIEVEMENT_TIERS_MAP: Record<string, string> = {
   dedicated: "silver",
   obsessed: "gold",
   no_life: "diamond",
+  white_rabbit: "diamond",
 };
 const ACHIEVEMENT_NAMES_MAP: Record<string, string> = {
   god_mode: "God Mode", legend: "Legend", famous: "Famous", mayor: "Mayor",
@@ -79,6 +83,7 @@ const ACHIEVEMENT_NAMES_MAP: Record<string, string> = {
   legendary: "Legendary", admired: "Admired", appreciated: "Appreciated",
   on_fire: "On Fire", dedicated: "Dedicated", obsessed: "Obsessed",
   no_life: "No Life", generous_streak: "Generous Streak",
+  white_rabbit: "White Rabbit",
 };
 
 // Dev "class" — funny RPG-style title, deterministic per username
@@ -404,6 +409,13 @@ function HomeContent() {
   const [skyAds, setSkyAds] = useState<import("@/lib/skyAds").SkyAd[]>(DEFAULT_SKY_ADS);
   const [gitcPrice, setGitcPrice] = useState<{ priceUsd: string; change24h: number } | null>(null);
   const [caCopied, setCaCopied] = useState(false);
+  const [pillModalOpen, setPillModalOpen] = useState(false);
+  const [founderMessageOpen, setFounderMessageOpen] = useState(false);
+  const [rabbitFlash, setRabbitFlash] = useState(false);
+  const [rabbitProgress, setRabbitProgress] = useState(0);
+  const [rabbitSighting, setRabbitSighting] = useState<number | null>(null);
+  const [rabbitCompletion, setRabbitCompletion] = useState(false);
+  const [rabbitHintFlash, setRabbitHintFlash] = useState<string | null>(null);
 
   // Raid system
   const [raidState, raidActions] = useRaidSequence();
@@ -678,9 +690,12 @@ function HomeContent() {
   // Outside fly mode: compare → share modal → profile card → focus → explore mode
   useEffect(() => {
     if (flyMode && !selectedBuilding) return;
-    if (!flyMode && !exploreMode && !focusedBuilding && !shareData && !selectedBuilding && !giftClaimed && !giftModalOpen && !comparePair && !compareBuilding && raidState.phase === "idle") return;
+    if (!flyMode && !exploreMode && !focusedBuilding && !shareData && !selectedBuilding && !giftClaimed && !giftModalOpen && !comparePair && !compareBuilding && !founderMessageOpen && !pillModalOpen && raidState.phase === "idle") return;
     const onKey = (e: KeyboardEvent) => {
       if (e.code === "Escape") {
+        // Founder modals take highest priority
+        if (founderMessageOpen) { setFounderMessageOpen(false); return; }
+        if (pillModalOpen) { setPillModalOpen(false); return; }
         // Raid takes priority
         if (raidState.phase !== "idle") {
           if (raidState.phase === "preview") {
@@ -721,7 +736,74 @@ function HomeContent() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [flyMode, exploreMode, focusedBuilding, shareData, selectedBuilding, giftClaimed, giftModalOpen, comparePair, compareBuilding, raidState.phase, raidActions]);
+  }, [flyMode, exploreMode, focusedBuilding, shareData, selectedBuilding, giftClaimed, giftModalOpen, comparePair, compareBuilding, founderMessageOpen, pillModalOpen, raidState.phase, raidActions]);
+
+  // Auto-dismiss rabbit flash, then spawn rabbit
+  useEffect(() => {
+    if (!rabbitFlash) return;
+    const t = setTimeout(() => {
+      setRabbitFlash(false);
+      if (rabbitProgress < 5) {
+        setRabbitSighting(rabbitProgress + 1);
+      }
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [rabbitFlash, rabbitProgress]);
+
+  // Fetch rabbit progress on login
+  useEffect(() => {
+    if (!session) return;
+    fetch("/api/rabbit?check=true")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (!data) return;
+        setRabbitProgress(data.progress ?? 0);
+        // If mid-quest, show rabbit automatically
+        if (data.progress > 0 && data.progress < 5) {
+          setRabbitSighting(data.progress + 1);
+        }
+      })
+      .catch(() => {});
+  }, [session]);
+
+  // Auto-dismiss rabbit hint flash
+  useEffect(() => {
+    if (!rabbitHintFlash) return;
+    const t = setTimeout(() => setRabbitHintFlash(null), 3000);
+    return () => clearTimeout(t);
+  }, [rabbitHintFlash]);
+
+  // Handle rabbit caught
+  const onRabbitCaught = useCallback(async () => {
+    if (!rabbitSighting) return;
+    const sighting = rabbitSighting;
+    setRabbitSighting(null);
+
+    try {
+      const res = await fetch("/api/rabbit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sighting }),
+      });
+      const data = await res.json();
+      if (!res.ok) return;
+
+      setRabbitProgress(data.progress);
+
+      if (data.completed) {
+        // Sighting 5: trigger cinematic
+        setRabbitCompletion(true);
+      } else {
+        // Sightings 1-4: show hint + spawn next
+        setRabbitHintFlash("The rabbit moves deeper...");
+        setTimeout(() => {
+          setRabbitSighting(data.progress + 1);
+        }, 2000);
+      }
+    } catch {
+      // Silently fail, rabbit will reappear on reload
+    }
+  }, [rabbitSighting]);
 
   const reloadCity = useCallback(async (bustCache = false) => {
     const cacheBust = bustCache ? `&_t=${Date.now()}` : "";
@@ -1136,6 +1218,9 @@ function HomeContent() {
         raidAttacker={raidState.attackerBuilding}
         raidDefender={raidState.defenderBuilding}
         onRaidPhaseComplete={raidActions.onPhaseComplete}
+        onLandmarkClick={() => { setPillModalOpen(true); setSelectedBuilding(null); }}
+        rabbitSighting={rabbitSighting}
+        onRabbitCaught={onRabbitCaught}
         onBuildingClick={(b) => {
           trackBuildingClicked(b.login);
           // Compare pick mode: clicking a second building completes the pair
@@ -2743,6 +2828,97 @@ function HomeContent() {
           onSkip={raidActions.skipToShare}
           onExit={raidActions.exitRaid}
         />
+      )}
+
+      {/* Founder's Landmark modals */}
+      {pillModalOpen && (
+        <PillModal
+          isLoggedIn={!!session}
+          hasClaimed={!!myBuilding?.claimed}
+          rabbitCompleted={rabbitProgress >= 5}
+          onRedPill={() => {
+            setPillModalOpen(false);
+            setFounderMessageOpen(true);
+          }}
+          onBluePill={() => {
+            setPillModalOpen(false);
+            if (rabbitProgress >= 5) return;
+            if (!myBuilding?.claimed) return;
+            setRabbitFlash(true);
+          }}
+          onClose={() => setPillModalOpen(false)}
+        />
+      )}
+      {founderMessageOpen && (
+        <FounderMessage onClose={() => setFounderMessageOpen(false)} />
+      )}
+
+      {/* "Follow the White Rabbit" flash */}
+      {rabbitFlash && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+          style={{
+            animation: "rabbitFlash 4s ease-in-out forwards",
+          }}
+        >
+          <div className="absolute inset-0 bg-black/80" />
+          <p
+            className="relative font-pixel text-[14px] sm:text-[18px] tracking-widest text-center px-4"
+            style={{
+              color: "#00ff41",
+              textShadow: "0 0 20px rgba(0,255,65,0.5), 0 0 40px rgba(0,255,65,0.2)",
+              animation: "rabbitText 4s ease-in-out forwards",
+            }}
+          >
+            Follow the white rabbit...
+          </p>
+          <style jsx>{`
+            @keyframes rabbitFlash {
+              0% { opacity: 0; }
+              15% { opacity: 1; }
+              75% { opacity: 1; }
+              100% { opacity: 0; }
+            }
+            @keyframes rabbitText {
+              0% { opacity: 0; transform: scale(0.95); }
+              15% { opacity: 1; transform: scale(1); }
+              75% { opacity: 1; transform: scale(1); }
+              100% { opacity: 0; transform: scale(1.02); }
+            }
+          `}</style>
+        </div>
+      )}
+
+      {/* Rabbit hint flash ("The rabbit moves deeper...") */}
+      {rabbitHintFlash && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+          style={{ animation: "rabbitHintAnim 3s ease-in-out forwards" }}
+        >
+          <div className="absolute inset-0 bg-black/60" />
+          <p
+            className="relative font-pixel text-[14px] sm:text-[16px] tracking-widest text-center px-4"
+            style={{
+              color: "#00ff41",
+              textShadow: "0 0 15px rgba(0,255,65,0.5), 0 0 30px rgba(0,255,65,0.2)",
+            }}
+          >
+            {rabbitHintFlash}
+          </p>
+          <style jsx>{`
+            @keyframes rabbitHintAnim {
+              0% { opacity: 0; }
+              15% { opacity: 1; }
+              70% { opacity: 1; }
+              100% { opacity: 0; }
+            }
+          `}</style>
+        </div>
+      )}
+
+      {/* Rabbit completion cinematic */}
+      {rabbitCompletion && (
+        <RabbitCompletion onComplete={() => setRabbitCompletion(false)} />
       )}
     </main>
   );

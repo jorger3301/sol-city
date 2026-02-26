@@ -469,6 +469,7 @@ export default function InstancedBuildings({
     const onPointerDown = (e: PointerEvent) => {
       if (introRef.current) return;
       if (wasAdPointerConsumed()) return;
+      if ((window as any).__spireClicked) return;
       const id = raycastInstance(e.clientX, e.clientY);
       if (id !== null && id < buildingsRef.current.length) {
         tapRef.current = { time: performance.now(), id, x: e.clientX, y: e.clientY };
@@ -500,6 +501,7 @@ export default function InstancedBuildings({
         document.body.style.cursor = "auto";
         return;
       }
+      if ((window as any).__spireCursor) return;
       // Throttle hover raycast to ~15Hz
       const now = performance.now();
       if (now - lastMoveTime < 66) return;

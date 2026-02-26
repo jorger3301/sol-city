@@ -26,6 +26,7 @@ import {
   LEDBanner,
   StreakFlame,
 } from "./BuildingEffects";
+import { MiniWhiteRabbit } from "./WhiteRabbit";
 
 // Shared constants
 const WHITE = new THREE.Color("#ffffff");
@@ -432,6 +433,10 @@ export function BuildingItemEffects({ building, accentColor, focused }: { buildi
       )}
       {shouldRenderZone("crown_item") && (
         <CrownItem height={height} color={accentColor} focused={focused} />
+      )}
+      {/* White rabbit: always renders for completers, not tied to loadout */}
+      {building.rabbit_completed && (
+        <MiniWhiteRabbit height={height} width={width} depth={depth} />
       )}
 
       {/* New roof zone items */}
