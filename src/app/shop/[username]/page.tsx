@@ -105,7 +105,7 @@ export default async function ShopPage({ params, searchParams }: Props) {
 
   const sb = getSupabaseAdmin();
 
-  const [items, ownedItems, customizationsResult, billboardPurchasesResult, topDevResult, topStarsResult, achievementsResult, loadoutResult, raidLoadoutResult] = await Promise.all([
+  const [items, ownedItems, customizationsResult, billboardPurchasesResult, topDevResult, topStarsResult, achievementsResult, loadoutResult, raidLoadoutResult, allPurchasesResult] = await Promise.all([
     getActiveItems(),
     getOwnedItems(dev.id),
     sb
@@ -147,9 +147,25 @@ export default async function ShopPage({ params, searchParams }: Props) {
       .eq("developer_id", dev.id)
       .eq("item_id", "raid_loadout")
       .maybeSingle(),
+    // A10: Count purchases per item for popularity badges
+    sb
+      .from("purchases")
+      .select("item_id")
+      .eq("status", "completed"),
   ]);
 
   const achievements = (achievementsResult.data ?? []).map((a: { achievement_id: string }) => a.achievement_id);
+
+  // A10: Compute top 3 most purchased items (min 5 purchases)
+  const purchaseCounts: Record<string, number> = {};
+  for (const p of allPurchasesResult.data ?? []) {
+    purchaseCounts[p.item_id] = (purchaseCounts[p.item_id] ?? 0) + 1;
+  }
+  const popularItems = Object.entries(purchaseCounts)
+    .filter(([, count]) => count >= 5)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([id]) => id);
   const initialLoadout = (loadoutResult.data?.config as { crown: string | null; roof: string | null; aura: string | null } | null) ?? null;
 
   const billboardSlots = billboardPurchasesResult.count ?? 0;
@@ -232,6 +248,7 @@ export default async function ShopPage({ params, searchParams }: Props) {
           giftedItem={giftedItem ?? null}
           giftedTo={giftedTo ?? null}
           streakFreezesAvailable={dev.streak_freezes_available ?? 0}
+          popularItems={popularItems}
         />
 
         {/* Back links */}

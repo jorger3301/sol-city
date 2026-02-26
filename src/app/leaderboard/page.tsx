@@ -5,6 +5,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import LeaderboardTracker from "@/components/LeaderboardTracker";
 import LeaderboardYouBadge, { LeaderboardAuthProvider } from "@/components/LeaderboardYouBadge";
 import LeaderboardUserPosition from "@/components/LeaderboardUserPosition";
+import LeaderboardYouVsNext from "@/components/LeaderboardYouVsNext";
 
 export const revalidate = 300; // ISR: regenerate every 5 min
 
@@ -26,6 +27,7 @@ interface Developer {
   rank: number | null;
   referral_count: number;
   kudos_count: number;
+  created_at?: string;
 }
 
 type TabId = "contributors" | "stars" | "architects" | "achievers" | "recruiters";
@@ -100,7 +102,7 @@ export default async function LeaderboardPage({
   } else {
     const { data } = await supabase
       .from("developers")
-      .select("github_login, name, avatar_url, contributions, contributions_total, total_stars, public_repos, primary_language, rank, referral_count, kudos_count")
+      .select("github_login, name, avatar_url, contributions, contributions_total, total_stars, public_repos, primary_language, rank, referral_count, kudos_count, created_at")
       .order(orderColumn, { ascending: orderAscending, nullsFirst: false })
       .order("created_at", { ascending: true })
       .limit(50);
@@ -130,6 +132,31 @@ export default async function LeaderboardPage({
     : activeTab === "architects" ? "Repos"
     : activeTab === "achievers" ? "Achievements"
     : "Referrals";
+
+  // A4: Raw metric values for "You vs. Next" component
+  function getMetricValueRaw(dev: Developer): number {
+    switch (activeTab) {
+      case "contributors": return (dev.contributions_total && dev.contributions_total > 0) ? dev.contributions_total : dev.contributions;
+      case "stars": return dev.total_stars;
+      case "architects": return dev.public_repos;
+      case "achievers": return achieverCounts[dev.github_login] ?? 0;
+      case "recruiters": return dev.referral_count ?? 0;
+      default: return 0;
+    }
+  }
+
+  const devMetrics = devs.map((d) => ({
+    login: d.github_login.toLowerCase(),
+    value: getMetricValueRaw(d),
+  }));
+
+  // A6: "NEW" detection — devs created in last 7 days
+  const sevenDaysAgo = Date.now() - 7 * 86400000;
+  const newLogins = new Set(
+    devs
+      .filter((d) => d.created_at && new Date(d.created_at).getTime() > sevenDaysAgo)
+      .map((d) => d.github_login.toLowerCase())
+  );
 
   return (
     <LeaderboardAuthProvider>
@@ -173,6 +200,9 @@ export default async function LeaderboardPage({
           ))}
         </div>
 
+        {/* A4: "You vs. Next" banner */}
+        <LeaderboardYouVsNext metrics={devMetrics} metricLabel={metricLabel} />
+
         {/* Table */}
         <div className="mt-6 border-[3px] border-border">
           {/* Header row */}
@@ -192,11 +222,18 @@ export default async function LeaderboardPage({
                 href={`/dev/${dev.github_login}`}
                 className="flex items-center gap-4 border-b border-border/50 px-5 py-3.5 transition-colors hover:bg-bg-card"
               >
-                <span
-                  className="w-10 text-center text-sm font-bold"
-                  style={{ color: rankColor(pos) }}
-                >
-                  {pos}
+                <span className="w-10 text-center">
+                  <span
+                    className="text-sm font-bold"
+                    style={{ color: rankColor(pos) }}
+                  >
+                    {pos}
+                  </span>
+                  {newLogins.has(dev.github_login.toLowerCase()) && (
+                    <span className="block text-[7px] font-bold" style={{ color: "#ffd700" }}>
+                      NEW
+                    </span>
+                  )}
                 </span>
 
                 <div className="flex flex-1 items-center gap-3 overflow-hidden">

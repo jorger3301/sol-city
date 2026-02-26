@@ -39,13 +39,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   const contribs = (dev.contributions_total && dev.contributions_total > 0) ? dev.contributions_total : dev.contributions;
-  const description = `#${dev.rank ?? "?"} in Git City | ${contribs.toLocaleString()} contributions, ${dev.public_repos.toLocaleString()} repos, ${dev.total_stars.toLocaleString()} stars`;
+  const title = `@${dev.github_login} - Git City | ${contribs.toLocaleString()} contributions`;
+  const description = `See @${dev.github_login}'s building in Git City. ${contribs.toLocaleString()} contributions, ${dev.public_repos.toLocaleString()} repos, ${dev.total_stars.toLocaleString()} stars. Rank #${dev.rank ?? "?"} in the city.`;
 
   return {
-    title: `@${dev.github_login} - Git City`,
+    title,
     description,
     openGraph: {
-      title: `@${dev.github_login} - Git City`,
+      title,
       description,
     },
     twitter: {

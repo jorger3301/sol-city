@@ -58,6 +58,7 @@ interface Props {
   giftedItem?: string | null;
   giftedTo?: string | null;
   streakFreezesAvailable?: number;
+  popularItems?: string[];
 }
 
 interface PixModalData {
@@ -596,6 +597,7 @@ export default function ShopClient({
   giftedItem = null,
   giftedTo = null,
   streakFreezesAvailable = 0,
+  popularItems = [],
 }: Props) {
   // Loadout state
   const [loadout, setLoadout] = useState<Loadout>(
@@ -1144,8 +1146,23 @@ export default function ShopClient({
                       }
                     };
 
+                    const isPopular = popularItems.includes(itemId);
+
                     return (
                       <div key={itemId} className="relative" data-buy-popover>
+                        {/* A10: Popularity badge */}
+                        {isPopular && !isOwned && !isEquipped && (
+                          <span
+                            className="absolute top-1 right-1 z-10 px-1 py-px text-[7px] font-bold"
+                            style={{
+                              backgroundColor: popularItems[0] === itemId ? "rgba(255,107,107,0.15)" : "rgba(200,230,74,0.15)",
+                              color: popularItems[0] === itemId ? "#ff6b6b" : ACCENT,
+                              border: `1px solid ${popularItems[0] === itemId ? "rgba(255,107,107,0.3)" : "rgba(200,230,74,0.3)"}`,
+                            }}
+                          >
+                            {popularItems[0] === itemId ? "\uD83D\uDD25 Popular" : "\u2B50 Trending"}
+                          </span>
+                        )}
                         <button
                           onClick={handleClick}
                           disabled={isBuying}
