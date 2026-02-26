@@ -1466,14 +1466,6 @@ function HomeContent() {
                 >
                   @samuelrizzondev
                 </a>
-                {" "}·{" "}
-                <Link
-                  href="/advertise"
-                  className="transition-colors hover:text-cream"
-                  style={{ color: theme.accent }}
-                >
-                  Advertise
-                </Link>
               </p>
               {gitcPrice && (
                 <button
@@ -1593,6 +1585,19 @@ function HomeContent() {
                   style={{ color: theme.accent }}
                 >
                   Shop
+                </Link>
+                <Link
+                  href="/advertise"
+                  className="btn-press relative border-[3px] px-4 py-1.5 text-[10px] backdrop-blur-sm transition-colors"
+                  style={{ color: theme.accent, borderColor: theme.accent + "60", backgroundColor: theme.accent + "12" }}
+                >
+                  Place your Ad
+                  <span
+                    className="absolute -top-1.5 -right-2 rounded-sm px-1 py-px text-[7px] font-bold leading-none text-bg"
+                    style={{ backgroundColor: theme.accent }}
+                  >
+                    NEW
+                  </span>
                 </Link>
                 <Link
                   href="/leaderboard"
