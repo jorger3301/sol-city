@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { rateLimit } from "@/lib/rate-limit";
+import { MAX_TEXT_LENGTH } from "@/lib/skyAds";
 
 const ALLOWED_LINK = /^(https:\/\/|mailto:)/;
 
@@ -20,6 +21,7 @@ export async function POST(request: NextRequest) {
 
   let body: {
     token?: string;
+    text?: string;
     brand?: string;
     description?: string;
     link?: string;
@@ -51,6 +53,17 @@ export async function POST(request: NextRequest) {
 
   // Build update payload from optional fields
   const update: Record<string, string | null> = {};
+
+  if (body.text !== undefined) {
+    const safeText = String(body.text).slice(0, MAX_TEXT_LENGTH).trim();
+    if (!safeText) {
+      return NextResponse.json(
+        { error: "Ad text cannot be empty" },
+        { status: 400 },
+      );
+    }
+    update.text = safeText;
+  }
 
   if (body.brand !== undefined) {
     const safeBrand = String(body.brand).slice(0, 60).trim();

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { MAX_TEXT_LENGTH } from "@/lib/skyAds";
 
 const AdPreview = dynamic(() => import("@/components/AdPreview"), { ssr: false });
 
@@ -119,17 +120,20 @@ export function SetupContent({
   };
   vehicleLabel: string;
 }) {
+  const [text, setText] = useState(ad.text);
   const [brand, setBrand] = useState(ad.brand ?? "");
   const [description, setDescription] = useState(ad.description ?? "");
   const [link, setLink] = useState(ad.link ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  const textOver = text.length > MAX_TEXT_LENGTH;
+
   const linkValid =
     !link || link.startsWith("https://") || link.startsWith("mailto:");
 
   async function handleSave() {
-    if (!linkValid) return;
+    if (!linkValid || textOver || !text.trim()) return;
     setSaving(true);
     setError("");
 
@@ -139,6 +143,7 @@ export function SetupContent({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           token,
+          text: text.trim(),
           brand: brand || undefined,
           description: description || undefined,
           link: link || undefined,
@@ -166,7 +171,7 @@ export function SetupContent({
         {/* 3D Preview */}
         <AdPreview
           vehicle={ad.vehicle}
-          text={ad.text}
+          text={text}
           color={ad.color}
           bgColor={ad.bg_color}
           tall
@@ -199,6 +204,32 @@ export function SetupContent({
         </p>
 
         <div className="mt-5 space-y-5">
+          {/* Ad text (shown on building) */}
+          <div>
+            <label className="block text-xs text-muted normal-case">
+              Ad text
+            </label>
+            <input
+              type="text"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              maxLength={MAX_TEXT_LENGTH + 10}
+              placeholder="YOUR BRAND"
+              className="mt-1 w-full border-[3px] border-border bg-transparent px-3 py-2.5 font-pixel text-sm text-cream outline-none transition-colors focus:border-[#c8e64a]"
+            />
+            <p
+              className="mt-1 text-[11px] normal-case"
+              style={{ color: textOver ? "#ff6b6b" : undefined }}
+            >
+              <span className={textOver ? "" : "text-muted"}>
+                {text.length}/{MAX_TEXT_LENGTH}
+              </span>
+            </p>
+            <p className="text-[11px] text-muted normal-case">
+              This is what appears on the building in the city
+            </p>
+          </div>
+
           {/* Brand name */}
           <div>
             <label className="block text-xs text-muted normal-case">
@@ -280,7 +311,7 @@ export function SetupContent({
             <button
               type="button"
               onClick={handleSave}
-              disabled={saving || !linkValid}
+              disabled={saving || !linkValid || textOver || !text.trim()}
               className="btn-press w-full py-3.5 text-sm text-bg transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
               style={{
                 backgroundColor: ACCENT,
