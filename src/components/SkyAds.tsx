@@ -248,25 +248,17 @@ function BannerPlane({
     if (flyMode) return;
     onAdClick?.(ad);
   };
-  const handlePointerOver = () => {
-    if (!flyMode && ad.link) document.body.style.cursor = "pointer";
-  };
-  const handlePointerOut = () => {
-    document.body.style.cursor = "auto";
-  };
 
   const bannerY = -BANNER_DROP - BANNER_HEIGHT / 2;
   const bannerZ = ROPE_GAP + BANNER_LENGTH / 2;
 
   return (
     <group ref={groupRef}>
-      {/* Invisible hitbox covering entire vehicle (plane + rope + banner) */}
+      {/* Invisible hitbox for pointer guard (click-only, no hover events) */}
       <mesh
         ref={hitboxRef}
         position={[0, bannerY / 2, (ROPE_GAP + BANNER_LENGTH) / 2]}
         onClick={handleClick}
-        onPointerOver={handlePointerOver}
-        onPointerOut={handlePointerOut}
       >
         <boxGeometry args={[12, Math.abs(bannerY) + BANNER_HEIGHT + 12, ROPE_GAP + BANNER_LENGTH + 12]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
@@ -291,8 +283,6 @@ function BannerPlane({
         position={[0.15, bannerY, bannerZ]}
         rotation={[0, Math.PI / 2, 0]}
         onClick={handleClick}
-        onPointerOver={handlePointerOver}
-        onPointerOut={handlePointerOut}
       >
         <planeGeometry args={[BANNER_LENGTH, BANNER_HEIGHT]} />
       </mesh>
@@ -304,8 +294,6 @@ function BannerPlane({
         position={[-0.15, bannerY, bannerZ]}
         rotation={[0, -Math.PI / 2, 0]}
         onClick={handleClick}
-        onPointerOver={handlePointerOver}
-        onPointerOut={handlePointerOut}
       >
         <planeGeometry args={[BANNER_LENGTH, BANNER_HEIGHT]} />
       </mesh>
@@ -413,22 +401,14 @@ function Blimp({
     if (flyMode) return;
     onAdClick?.(ad);
   };
-  const handlePointerOver = () => {
-    if (!flyMode && ad.link) document.body.style.cursor = "pointer";
-  };
-  const handlePointerOut = () => {
-    document.body.style.cursor = "auto";
-  };
 
   return (
     <group ref={groupRef}>
-      {/* Invisible hitbox covering entire blimp */}
+      {/* Invisible hitbox for pointer guard (click-only, no hover events) */}
       <mesh
         ref={blimpHitboxRef}
         position={[0, -2, 0]}
         onClick={handleClick}
-        onPointerOver={handlePointerOver}
-        onPointerOut={handlePointerOut}
       >
         <boxGeometry args={[24, 24, 54]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
@@ -436,7 +416,7 @@ function Blimp({
 
       {/* Body — elongated along local Z (forward), light hull */}
       <mesh scale={[0.7, 0.5, 1.6]}>
-        <sphereGeometry args={[15, 16, 12]} />
+        <sphereGeometry args={[15, 10, 8]} />
         <meshStandardMaterial
           color="#c0c8d0"
           emissive="#606870"
@@ -448,7 +428,7 @@ function Blimp({
 
       {/* Accent stripe — colored band around belly */}
       <mesh scale={[0.72, 0.14, 1.62]} position={[0, -1, 0]}>
-        <sphereGeometry args={[15, 16, 8]} />
+        <sphereGeometry args={[15, 10, 6]} />
         <meshStandardMaterial
           color={ad.color}
           emissive={ad.color}
@@ -459,7 +439,7 @@ function Blimp({
 
       {/* Accent stripe — thin upper trim */}
       <mesh scale={[0.71, 0.07, 1.61]} position={[0, 3.5, 0]}>
-        <sphereGeometry args={[15, 16, 6]} />
+        <sphereGeometry args={[15, 10, 4]} />
         <meshStandardMaterial
           color={ad.color}
           emissive={ad.color}
@@ -544,8 +524,6 @@ function Blimp({
         position={[10.8, -2, 0]}
         rotation={[0, Math.PI / 2, 0]}
         onClick={handleClick}
-        onPointerOver={handlePointerOver}
-        onPointerOut={handlePointerOut}
       >
         <planeGeometry args={[26, 9]} />
       </mesh>
@@ -557,21 +535,12 @@ function Blimp({
         position={[-10.8, -2, 0]}
         rotation={[0, -Math.PI / 2, 0]}
         onClick={handleClick}
-        onPointerOver={handlePointerOver}
-        onPointerOut={handlePointerOut}
       >
         <planeGeometry args={[26, 9]} />
       </mesh>
 
       {/* LED screen glow */}
-      <pointLight position={[13, -2, 0]} color={ad.color} intensity={4} distance={25} />
-      <pointLight position={[-13, -2, 0]} color={ad.color} intensity={4} distance={25} />
-
-      {/* Nose light */}
-      <pointLight position={[0, 0, 24]} color={ad.color} intensity={3} distance={20} />
-
-      {/* Gondola searchlight — shines down */}
-      <pointLight position={[0, -11, 0]} intensity={8} distance={50} color="#f0d870" />
+      <pointLight position={[0, -2, 0]} color={ad.color} intensity={5} distance={30} />
     </group>
   );
 }
@@ -592,11 +561,16 @@ export function ViewabilityTracker({
   const projScreenMatrix = useMemo(() => new THREE.Matrix4(), []);
   const timers = useRef<Map<string, number>>(new Map());
   const fired = useRef<Set<string>>(new Set());
+  const frameCount = useRef(0);
 
   useFrame(({ camera }, delta) => {
     if (!onAdViewed || !meshRefs.current) return;
 
-    const dt = Math.min(delta, 0.1);
+    // Check every 10 frames (~6x/sec at 60fps) instead of every frame
+    frameCount.current++;
+    if (frameCount.current % 10 !== 0) return;
+
+    const dt = Math.min(delta * 10, 0.2); // accumulate time for skipped frames
 
     projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     frustum.setFromProjectionMatrix(projScreenMatrix);
@@ -604,7 +578,6 @@ export function ViewabilityTracker({
     for (const [adId, mesh] of meshRefs.current) {
       if (fired.current.has(adId)) continue;
 
-      // Update world matrix so frustum check uses current position
       mesh.updateWorldMatrix(true, false);
 
       if (frustum.intersectsObject(mesh)) {

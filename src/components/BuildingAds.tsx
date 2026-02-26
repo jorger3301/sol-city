@@ -30,13 +30,7 @@ function useAdInteraction(ad: SkyAd, onAdClick?: (ad: SkyAd) => void) {
     markAdPointerConsumed();
     onAdClick?.(ad);
   };
-  const handlePointerOver = () => {
-    if (ad.link) document.body.style.cursor = "pointer";
-  };
-  const handlePointerOut = () => {
-    document.body.style.cursor = "auto";
-  };
-  return { handleClick, handlePointerOver, handlePointerOut };
+  return { handleClick };
 }
 
 // ─── AdBillboard — Large mounted panel with frame ──────────────
@@ -82,7 +76,7 @@ function AdBillboard({
     if (needsScroll) tex.offset.x = (clock.elapsedTime * SCROLL_SPEED) % 1;
   });
 
-  const { handleClick, handlePointerOver, handlePointerOut } = useAdInteraction(ad, onAdClick);
+  const { handleClick } = useAdInteraction(ad, onAdClick);
   const prevMesh = useRef<THREE.Mesh | null>(null);
   useEffect(() => { return () => { if (prevMesh.current) unregisterAdMesh(prevMesh.current); }; }, []);
 
@@ -96,12 +90,7 @@ function AdBillboard({
   return (
     <group position={[building.position[0], 0, building.position[2]]}>
       {/* Dark frame behind the screen */}
-      <mesh
-        position={[0, y, zOff - 0.3]}
-        onClick={handleClick}
-        onPointerOver={handlePointerOver}
-        onPointerOut={handlePointerOut}
-      >
+      <mesh position={[0, y, zOff - 0.3]} onClick={handleClick}>
         <boxGeometry args={[panelW + frameT * 2, panelH + frameT * 2, 0.3]} />
         <meshStandardMaterial color="#222" metalness={0.6} roughness={0.4} />
       </mesh>
@@ -111,29 +100,15 @@ function AdBillboard({
         material={ledMat}
         position={[0, y, zOff + 0.1]}
         onClick={handleClick}
-        onPointerOver={handlePointerOver}
-        onPointerOut={handlePointerOut}
       >
         <planeGeometry args={[panelW, panelH]} />
       </mesh>
       {/* Support struts from below */}
-      <mesh
-        position={[-panelW * 0.3, y - panelH / 2 - 1.5, zOff - 0.3]}
-        rotation={[0.3, 0, 0]}
-        onClick={handleClick}
-        onPointerOver={handlePointerOver}
-        onPointerOut={handlePointerOut}
-      >
+      <mesh position={[-panelW * 0.3, y - panelH / 2 - 1.5, zOff - 0.3]} rotation={[0.3, 0, 0]}>
         <boxGeometry args={[0.3, 3, 0.3]} />
         <meshStandardMaterial color="#333" metalness={0.5} roughness={0.4} />
       </mesh>
-      <mesh
-        position={[panelW * 0.3, y - panelH / 2 - 1.5, zOff - 0.3]}
-        rotation={[0.3, 0, 0]}
-        onClick={handleClick}
-        onPointerOver={handlePointerOver}
-        onPointerOut={handlePointerOut}
-      >
+      <mesh position={[panelW * 0.3, y - panelH / 2 - 1.5, zOff - 0.3]} rotation={[0.3, 0, 0]}>
         <boxGeometry args={[0.3, 3, 0.3]} />
         <meshStandardMaterial color="#333" metalness={0.5} roughness={0.4} />
       </mesh>
@@ -189,7 +164,7 @@ function AdRooftopSign({
     if (needsScroll) tex.offset.x = (clock.elapsedTime * SCROLL_SPEED) % 1;
   });
 
-  const { handleClick, handlePointerOver, handlePointerOut } = useAdInteraction(ad, onAdClick);
+  const { handleClick } = useAdInteraction(ad, onAdClick);
   const prevMesh = useRef<THREE.Mesh | null>(null);
   useEffect(() => { return () => { if (prevMesh.current) unregisterAdMesh(prevMesh.current); }; }, []);
 
@@ -205,34 +180,19 @@ function AdRooftopSign({
   return (
     <group position={[building.position[0], 0, building.position[2]]}>
       {/* Main pole */}
-      <mesh
-        position={[0, poleY, 0]}
-        onClick={handleClick}
-        onPointerOver={handlePointerOver}
-        onPointerOut={handlePointerOut}
-      >
+      <mesh position={[0, poleY, 0]}>
         <cylinderGeometry args={[0.3, 0.4, poleH, 6]} />
         <meshStandardMaterial color="#666" metalness={0.7} roughness={0.3} />
       </mesh>
       {/* Spinning sign group */}
       <group ref={groupRef} position={[0, signY, 0]}>
         {/* Top crossbar */}
-        <mesh
-          position={[0, signH / 2 + 0.2, 0]}
-          onClick={handleClick}
-          onPointerOver={handlePointerOver}
-          onPointerOut={handlePointerOut}
-        >
+        <mesh position={[0, signH / 2 + 0.2, 0]}>
           <boxGeometry args={[signW + 1, 0.4, 0.6]} />
           <meshStandardMaterial color="#555" metalness={0.6} roughness={0.3} />
         </mesh>
         {/* Bottom crossbar */}
-        <mesh
-          position={[0, -signH / 2 - 0.2, 0]}
-          onClick={handleClick}
-          onPointerOver={handlePointerOver}
-          onPointerOut={handlePointerOut}
-        >
+        <mesh position={[0, -signH / 2 - 0.2, 0]}>
           <boxGeometry args={[signW + 1, 0.4, 0.6]} />
           <meshStandardMaterial color="#555" metalness={0.6} roughness={0.3} />
         </mesh>
@@ -242,8 +202,6 @@ function AdRooftopSign({
           material={ledMat}
           position={[0, 0, 0.15]}
           onClick={handleClick}
-          onPointerOver={handlePointerOver}
-          onPointerOut={handlePointerOut}
         >
           <planeGeometry args={[signW, signH]} />
         </mesh>
@@ -253,14 +211,11 @@ function AdRooftopSign({
           position={[0, 0, -0.15]}
           rotation={[0, Math.PI, 0]}
           onClick={handleClick}
-          onPointerOver={handlePointerOver}
-          onPointerOut={handlePointerOut}
         >
           <planeGeometry args={[signW, signH]} />
         </mesh>
-        {/* Glow both sides */}
-        <pointLight position={[0, 0, 3]} color={ad.color} intensity={3} distance={15} />
-        <pointLight position={[0, 0, -3]} color={ad.color} intensity={3} distance={15} />
+        {/* Glow */}
+        <pointLight position={[0, 0, 0]} color={ad.color} intensity={4} distance={15} />
       </group>
     </group>
   );
@@ -315,13 +270,10 @@ function AdLedWrap({
   }, [tex, ledMat, accentMat]);
 
   useFrame(({ clock }) => {
-    const t = clock.elapsedTime;
-    if (needsScroll) tex.offset.x = (t * SCROLL_SPEED * 0.8) % 1;
-    ledMat.emissiveIntensity = 1.3 + Math.sin(t * 3) * 0.5;
-    accentMat.emissiveIntensity = 1.5 + Math.sin(t * 3 + 1) * 0.8;
+    if (needsScroll) tex.offset.x = (clock.elapsedTime * SCROLL_SPEED * 0.8) % 1;
   });
 
-  const { handleClick, handlePointerOver, handlePointerOut } = useAdInteraction(ad, onAdClick);
+  const { handleClick } = useAdInteraction(ad, onAdClick);
   const faceMeshes = useRef<(THREE.Mesh | null)[]>([null, null, null, null]);
   useEffect(() => { return () => { for (const m of faceMeshes.current) { if (m) unregisterAdMesh(m); } }; }, []);
 
@@ -358,8 +310,6 @@ function AdLedWrap({
             position={[f.pos[0], f.pos[1], f.pos[2]]}
             rotation={[f.rot[0], f.rot[1], f.rot[2]]}
             onClick={handleClick}
-            onPointerOver={handlePointerOver}
-            onPointerOut={handlePointerOut}
           >
             <planeGeometry args={[f.w, wrapH]} />
           </mesh>
@@ -368,9 +318,6 @@ function AdLedWrap({
             material={accentMat}
             position={[f.pos[0], f.pos[1] + wrapH / 2 + accentH / 2, f.pos[2]]}
             rotation={[f.rot[0], f.rot[1], f.rot[2]]}
-            onClick={handleClick}
-            onPointerOver={handlePointerOver}
-            onPointerOut={handlePointerOut}
           >
             <planeGeometry args={[f.w, accentH]} />
           </mesh>
@@ -379,19 +326,13 @@ function AdLedWrap({
             material={accentMat}
             position={[f.pos[0], f.pos[1] - wrapH / 2 - accentH / 2, f.pos[2]]}
             rotation={[f.rot[0], f.rot[1], f.rot[2]]}
-            onClick={handleClick}
-            onPointerOver={handlePointerOver}
-            onPointerOut={handlePointerOut}
           >
             <planeGeometry args={[f.w, accentH]} />
           </mesh>
         </group>
       ))}
-      {/* Glow on 4 sides */}
-      <pointLight position={[0, y, depth / 2 + 2]} color={ad.color} intensity={3} distance={15} />
-      <pointLight position={[0, y, -depth / 2 - 2]} color={ad.color} intensity={3} distance={15} />
-      <pointLight position={[width / 2 + 2, y, 0]} color={ad.color} intensity={3} distance={15} />
-      <pointLight position={[-width / 2 - 2, y, 0]} color={ad.color} intensity={3} distance={15} />
+      {/* Single glow light (emissive materials handle most of the glow) */}
+      <pointLight position={[0, y, 0]} color={ad.color} intensity={4} distance={20} />
     </group>
   );
 }
