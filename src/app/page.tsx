@@ -6,13 +6,13 @@ import dynamic from "next/dynamic";
 import type { Session } from "@supabase/supabase-js";
 import { createBrowserSupabase } from "@/lib/supabase";
 import {
-  generateCityLayout,
+  generateProtocolCityLayout,
   type CityBuilding,
   type CityPlaza,
   type CityDecoration,
   type CityRiver,
   type CityBridge,
-} from "@/lib/github";
+} from "@/lib/city-layout";
 import Image from "next/image";
 import Link from "next/link";
 import ActivityTicker, { type FeedEvent } from "@/components/ActivityTicker";
@@ -143,11 +143,11 @@ interface CityStats {
 
 // ─── Loading phases for search feedback ─────────────────────
 const LOADING_PHASES = [
-  { delay: 0,     text: "Fetching GitHub profile..." },
-  { delay: 2000,  text: "Analyzing contributions..." },
+  { delay: 0,     text: "Fetching protocol data..." },
+  { delay: 2000,  text: "Analyzing on-chain activity..." },
   { delay: 5000,  text: "Building the city block..." },
   { delay: 9000,  text: "Almost there..." },
-  { delay: 13000, text: "This one's a big profile. Hang tight..." },
+  { delay: 13000, text: "Crunching the numbers. Hang tight..." },
 ];
 
 // Errors that won't change if you retry the same username
@@ -155,25 +155,24 @@ const PERMANENT_ERROR_CODES = new Set(["not-found", "org", "no-activity"]);
 
 const ERROR_MESSAGES: Record<string, { primary: (u: string) => string; secondary: string; hasRetry?: boolean; hasLink?: boolean }> = {
   "not-found": {
-    primary: (u) => `"@${u}" doesn't exist on GitHub`,
-    secondary: "Check the spelling — could be a typo. GitHub usernames are case-insensitive.",
+    primary: (u) => `"${u}" wasn't found`,
+    secondary: "Check the spelling — protocol slugs are case-insensitive.",
   },
   "org": {
-    primary: (u) => `"@${u}" is an organization, not a person`,
-    secondary: "Sol City is for individual profiles. Try searching for one of its contributors by their personal username.",
+    primary: (u) => `"${u}" is not a protocol`,
+    secondary: "Sol City only shows Solana DeFi protocols. Try searching for a protocol name like 'jupiter' or 'raydium'.",
   },
   "no-activity": {
-    primary: (u) => `"@${u}" has no public activity yet`,
-    secondary: "Is this you? Open your profile settings, scroll to 'Contributions & activity', and enable 'Include private contributions'. Then search again.",
-    hasLink: true,
+    primary: (u) => `"${u}" has no on-chain activity yet`,
+    secondary: "This protocol may not have enough TVL to appear in the city.",
   },
   "rate-limit": {
     primary: () => "Search limit reached",
-    secondary: "You can look up 10 new profiles per hour. Developers already in the city are unlimited.",
+    secondary: "You can look up 10 protocols per hour. Protocols already in the city are unlimited.",
   },
   "github-rate-limit": {
-    primary: () => "GitHub's API is temporarily unavailable",
-    secondary: "Too many requests to GitHub. Try again in a few minutes.",
+    primary: () => "Data source temporarily unavailable",
+    secondary: "Too many requests. Try again in a few minutes.",
   },
   "network": {
     primary: () => "Couldn't reach the server",
@@ -835,10 +834,11 @@ function HomeContent() {
     if (!res.ok) return null;
     const data = await res.json();
     setStats(data.stats);
-    if (data.developers.length === 0) return null;
+    const protocols = data.protocols ?? data.developers ?? [];
+    if (protocols.length === 0) return null;
 
     // Render downtown immediately
-    const layout = generateCityLayout(data.developers);
+    const layout = generateProtocolCityLayout(protocols);
     setBuildings(layout.buildings);
     setPlazas(layout.plazas);
     setDecorations(layout.decorations);
@@ -849,7 +849,7 @@ function HomeContent() {
     if (total <= CHUNK) return layout.buildings;
 
     // Fetch remaining chunks in parallel
-    const promises: Promise<{ developers: typeof data.developers } | null>[] = [];
+    const promises: Promise<Record<string, unknown> | null>[] = [];
     for (let from = CHUNK; from < total; from += CHUNK) {
       promises.push(
         fetch(`/api/city?from=${from}&to=${from + CHUNK}${cacheBust}`)
@@ -857,15 +857,16 @@ function HomeContent() {
       );
     }
     const results = await Promise.all(promises);
-    let allDevs = [...data.developers];
+    let allProtocols = [...protocols];
     for (const chunk of results) {
-      if (chunk?.developers?.length) {
-        allDevs = [...allDevs, ...chunk.developers];
+      const chunkProtocols = (chunk as Record<string, unknown[]>)?.protocols ?? (chunk as Record<string, unknown[]>)?.developers ?? [];
+      if (chunkProtocols.length) {
+        allProtocols = [...allProtocols, ...chunkProtocols];
       }
     }
 
-    // Regenerate full layout with all developers
-    const fullLayout = generateCityLayout(allDevs);
+    // Regenerate full layout with all protocols
+    const fullLayout = generateProtocolCityLayout(allProtocols);
     setBuildings(fullLayout.buildings);
     setPlazas(fullLayout.plazas);
     setDecorations(fullLayout.decorations);
@@ -888,7 +889,7 @@ function HomeContent() {
         setInitialLoading(false);
         // Start intro if first visit (no deep-link params)
         const hasDeepLink = searchParams.get("user") || searchParams.get("compare");
-        if (!localStorage.getItem("gitcity_intro_seen") && !hasDeepLink) {
+        if (!localStorage.getItem("solcity_intro_seen") && !hasDeepLink) {
           setIntroMode(true);
         }
       }
@@ -929,7 +930,7 @@ function HomeContent() {
     setIntroMode(false);
     setIntroPhase(-1);
     setIntroConfetti(false);
-    localStorage.setItem("gitcity_intro_seen", "true");
+    localStorage.setItem("solcity_intro_seen", "true");
   }, []);
 
   const replayIntro = useCallback(() => {
@@ -1559,7 +1560,7 @@ function HomeContent() {
             </button>
           </div>
 
-          {/* Feed toggle (top-right, below GitHub badges on desktop) */}
+          {/* Feed toggle (top-right, below badges on desktop) */}
           {feedEvents.length >= 1 && (
             <div className="pointer-events-auto absolute top-3 right-3 sm:top-14 sm:right-4">
               <button
@@ -1593,7 +1594,7 @@ function HomeContent() {
       {!flyMode && !introMode && !rabbitCinematic && (
         <div className="pointer-events-auto fixed top-3 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 sm:left-auto sm:right-4 sm:top-4 sm:translate-x-0">
           <a
-            href="https://github.com/srizzon/git-city"
+            href="https://github.com/jorger3301/sol-city"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 border-[3px] border-border bg-bg/70 px-2.5 py-1 text-[10px] backdrop-blur-sm transition-colors hover:border-border-light"
@@ -1626,13 +1627,13 @@ function HomeContent() {
           <div className="pointer-events-auto flex w-full max-w-2xl flex-col items-center gap-3 sm:gap-5">
             <div className="text-center">
               <h1 className="text-2xl text-cream sm:text-3xl md:text-5xl">
-                Git{" "}
+                Sol{" "}
                 <span style={{ color: theme.accent }}>City</span>
               </h1>
               <p className="mt-2 text-[10px] leading-relaxed text-cream/80 normal-case">
                 {stats.total_developers > 0
-                  ? `A city of ${stats.total_developers.toLocaleString()} GitHub developers. Find yourself.`
-                  : "A global city of GitHub developers. Find yourself."}
+                  ? `A city of ${stats.total_developers.toLocaleString()} Solana protocols. Explore the skyline.`
+                  : "Solana protocols as buildings in a 3D city. Explore the skyline."}
               </p>
               <p className="pointer-events-auto mt-1 text-[9px] text-cream/50 normal-case">
                 built by{" "}
@@ -1897,7 +1898,7 @@ function HomeContent() {
                 boxShadow: `2px 2px 0 0 ${theme.shadow}`,
               }}
             >
-              Sign in with GitHub
+              Sign in
             </button>
             <button
               onClick={() => setSignInPromptVisible(false)}
@@ -2312,22 +2313,22 @@ function HomeContent() {
                 ) : (
                   <>
                     <Link
-                      href={`/dev/${selectedBuilding.login}`}
+                      href={`/${selectedBuilding.login}`}
                       className="btn-press flex-1 py-2 text-center text-[10px] text-bg"
                       style={{
                         backgroundColor: theme.accent,
                         boxShadow: `2px 2px 0 0 ${theme.shadow}`,
                       }}
                     >
-                      View Profile
+                      View Protocol
                     </Link>
                     <a
-                      href={`https://github.com/${selectedBuilding.login}`}
+                      href={`https://defillama.com/protocol/${selectedBuilding.login}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn-press flex-1 border-[2px] border-border py-2 text-center text-[10px] text-cream transition-colors hover:border-border-light"
                     >
-                      GitHub
+                      DeFiLlama
                     </a>
                   </>
                 )}
@@ -2588,7 +2589,7 @@ function HomeContent() {
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement("a");
                     a.href = url;
-                    a.download = `gitcity-${comparePair[0].login}-vs-${comparePair[1].login}.png`;
+                    a.download = `solcity-${comparePair[0].login}-vs-${comparePair[1].login}.png`;
                     document.body.appendChild(a);
                     a.click();
                     a.remove();
@@ -2606,7 +2607,7 @@ function HomeContent() {
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement("a");
                     a.href = url;
-                    a.download = `gitcity-${comparePair[0].login}-vs-${comparePair[1].login}-stories.png`;
+                    a.download = `solcity-${comparePair[0].login}-vs-${comparePair[1].login}-stories.png`;
                     document.body.appendChild(a);
                     a.click();
                     a.remove();
@@ -2709,9 +2710,9 @@ function HomeContent() {
 
               <a
                 href={`https://x.com/intent/tweet?text=${encodeURIComponent(
-                  `My GitHub just turned into a building. ${shareData.contributions.toLocaleString()} contributions, Rank #${shareData.rank ?? "?"}. What does yours look like?`
+                  `${shareData.login} is a building in Sol City. $${shareData.contributions.toLocaleString()} TVL, Rank #${shareData.rank ?? "?"}. Explore Solana protocols as a 3D city.`
                 )}&url=${encodeURIComponent(
-                  `${window.location.origin}/dev/${shareData.login}`
+                  `${window.location.origin}/${shareData.login}`
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"
