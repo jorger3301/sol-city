@@ -434,7 +434,7 @@ function RabbitContent() {
                 myPosition
                   ? `I followed the white rabbit in Sol City.\nCitizen #${myPosition} to find the other side.`
                   : `I followed the white rabbit in Sol City.`
-              )}&url=${encodeURIComponent("https://thegitcity.com/rabbit")}`}
+              )}&url=${encodeURIComponent("https://solcity.app/rabbit")}`}
               target="_blank"
               rel="noopener noreferrer"
               className="font-pixel text-[10px] sm:text-[11px] tracking-widest px-5 py-2 border cursor-pointer transition-all hover:border-[#00ff41] hover:text-[#00ff41]"
