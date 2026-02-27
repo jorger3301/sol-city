@@ -149,7 +149,7 @@ export default async function Image() {
           display: "flex",
         }}>
           <span style={{ fontSize: 16, color: "#222222" }}>
-            solcity.app
+            solcity.xyz
           </span>
         </div>
       </div>

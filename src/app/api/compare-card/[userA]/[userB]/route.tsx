@@ -16,12 +16,12 @@ const i18n: Record<Lang, {
   en: {
     rank: "RANK", contribs: "CONTRIBS", stars: "STARS", repos: "REPOS", kudos: "KUDOS",
     wins: "wins", tie: "Tie", notFound: "Comparison not found",
-    cta: "Who wins? → solcity.app",
+    cta: "Who wins? → solcity.xyz",
   },
   pt: {
     rank: "RANK", contribs: "COMMITS", stars: "ESTRELAS", repos: "REPOS", kudos: "KUDOS",
     wins: "vence", tie: "Empate", notFound: "Comparacao nao encontrada",
-    cta: "Quem ganha? → solcity.app",
+    cta: "Quem ganha? → solcity.xyz",
   },
 };
 

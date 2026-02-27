@@ -44,7 +44,7 @@ export async function createCryptoInvoice(
   }
 
   const priceUsd = item.price_usd_cents / 100;
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.solcity.app").replace(/\/+$/, "");
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.solcity.xyz").replace(/\/+$/, "");
 
   const successUrl = `${siteUrl}/shop/${githubLogin}?purchased=${itemId}`;
   const cancelUrl = `${siteUrl}/shop/${githubLogin}`;
