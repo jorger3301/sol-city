@@ -124,8 +124,8 @@ export async function POST(request: NextRequest) {
           price_data: {
             currency,
             product_data: {
-              name: `Git City Ad: ${plan.label}`,
-              description: `${plan.label} ad for ${plan.duration_days} days on Git City`,
+              name: `Sol City Ad: ${plan.label}`,
+              description: `${plan.label} ad for ${plan.duration_days} days on Sol City`,
             },
             unit_amount: getPriceCents(plan_id, currency),
           },

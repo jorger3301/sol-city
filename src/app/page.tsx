@@ -160,7 +160,7 @@ const ERROR_MESSAGES: Record<string, { primary: (u: string) => string; secondary
   },
   "org": {
     primary: (u) => `"@${u}" is an organization, not a person`,
-    secondary: "Git City is for individual profiles. Try searching for one of its contributors by their personal username.",
+    secondary: "Sol City is for individual profiles. Try searching for one of its contributors by their personal username.",
   },
   "no-activity": {
     primary: (u) => `"@${u}" has no public activity yet`,
@@ -904,7 +904,7 @@ function HomeContent() {
   // Phase 0: "Somewhere in the internet..."   0.8s → fade out ~3.8s
   // Phase 1: "Developers became buildings"    4.2s → fade out ~7.2s
   // Phase 2: "And commits became floors"      7.6s → fade out ~10.6s
-  // Phase 3: "Welcome to Git City"            11.0s → confetti + hold until end
+  // Phase 3: "Welcome to Sol City"            11.0s → confetti + hold until end
   const INTRO_TEXT_SCHEDULE = [800, 4200, 7600, 11000];
   const [introConfetti, setIntroConfetti] = useState(false);
 
@@ -919,7 +919,7 @@ function HomeContent() {
     for (let i = 0; i < INTRO_TEXT_SCHEDULE.length; i++) {
       timers.push(setTimeout(() => setIntroPhase(i), INTRO_TEXT_SCHEDULE[i]));
     }
-    // Confetti shortly after "Welcome to Git City"
+    // Confetti shortly after "Welcome to Sol City"
     timers.push(setTimeout(() => setIntroConfetti(true), INTRO_TEXT_SCHEDULE[3] + 500));
 
     return () => timers.forEach(clearTimeout);
@@ -1356,7 +1356,7 @@ function HomeContent() {
               </p>
             ))}
 
-            {/* Welcome to Git City (phase 3) */}
+            {/* Welcome to Sol City (phase 3) */}
             <div
               className="absolute flex flex-col items-center gap-1"
               style={{
@@ -1370,7 +1370,7 @@ function HomeContent() {
                 style={{ fontSize: "clamp(1.2rem, 5vw, 2.8rem)" }}
               >
                 Welcome to{" "}
-                <span style={{ color: theme.accent }}>Git City</span>
+                <span style={{ color: theme.accent }}>Sol City</span>
               </p>
             </div>
           </div>
@@ -2535,7 +2535,7 @@ function HomeContent() {
               <div className="px-4 pt-3 pb-1 flex gap-2">
                 <a
                   href={`https://x.com/intent/tweet?text=${encodeURIComponent(
-                    `I just compared my building with ${comparePair[1].login}'s in Git City. It wasn't even close. What's yours?`
+                    `I just compared my building with ${comparePair[1].login}'s in Sol City. It wasn't even close. What's yours?`
                   )}&url=${encodeURIComponent(
                     `${typeof window !== "undefined" ? window.location.origin : ""}/compare/${comparePair[0].login}/${comparePair[1].login}`
                   )}`}

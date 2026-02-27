@@ -3,7 +3,9 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-export const alt = "The Other Side - Git City";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const alt = "The Other Side - Sol City";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

@@ -4,7 +4,7 @@ export type AdCurrency = "usd" | "brl";
 
 // Promo discount multiplier. Set to 1 to disable.
 export const PROMO_DISCOUNT = 0.5;
-export const PROMO_LABEL = "50% off - Git City Launch Week";
+export const PROMO_LABEL = "50% off - Sol City Launch Week";
 
 export const SKY_AD_PLANS = {
   // Sky Ads

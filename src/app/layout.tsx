@@ -11,23 +11,23 @@ export const metadata: Metadata = {
         ? `https://${process.env.VERCEL_URL}`
         : "http://localhost:3000")
   ),
-  title: "Git City - Your GitHub as a 3D City",
+  title: "Sol City - Solana Protocols as a 3D City",
   description:
-    "Explore GitHub users as buildings in a 3D pixel art city. Fly through the city and discover developers.",
+    "Explore Solana protocols as buildings in a 3D pixel art city. Fly through the city, connect your wallet, and track on-chain activity.",
   keywords: [
-    "github",
+    "solana",
     "3d city",
-    "developer profile",
-    "contributions",
+    "defi",
+    "tvl",
     "pixel art",
-    "open source",
-    "git visualization",
+    "protocols",
+    "blockchain visualization",
   ],
   openGraph: {
-    title: "Git City - Your GitHub as a 3D City",
+    title: "Sol City - Solana Protocols as a 3D City",
     description:
-      "Explore GitHub users as buildings in a 3D pixel art city. Fly through the city and discover developers.",
-    siteName: "Git City",
+      "Explore Solana protocols as buildings in a 3D pixel art city. Fly through the city, connect your wallet, and track on-chain activity.",
+    siteName: "Sol City",
     type: "website",
     locale: "en_US",
   },
@@ -52,9 +52,9 @@ const BASE_URL =
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "WebApplication",
-  name: "Git City",
+  name: "Sol City",
   description:
-    "Your GitHub profile as a 3D pixel art building in an interactive city",
+    "Solana protocols visualized as 3D pixel art buildings in an interactive city",
   url: BASE_URL,
   applicationCategory: "DeveloperApplication",
   operatingSystem: "Web",

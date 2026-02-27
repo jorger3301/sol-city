@@ -7,12 +7,12 @@ import LeaderboardYouBadge, { LeaderboardAuthProvider } from "@/components/Leade
 import LeaderboardUserPosition from "@/components/LeaderboardUserPosition";
 import LeaderboardYouVsNext from "@/components/LeaderboardYouVsNext";
 
-export const revalidate = 300; // ISR: regenerate every 5 min
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Leaderboard - Git City",
+  title: "Leaderboard - Sol City",
   description:
-    "Top GitHub developers ranked by contributions, stars, repos, achievements, and referrals in Git City.",
+    "Top Solana protocols ranked by TVL, volume, fees, and achievements in Sol City.",
 };
 
 interface Developer {
@@ -178,7 +178,7 @@ export default async function LeaderboardPage({
             Leader<span style={{ color: ACCENT }}>board</span>
           </h1>
           <p className="mt-3 text-xs text-muted normal-case">
-            Top developers ranked in Git City
+            Top developers ranked in Sol City
           </p>
         </div>
 

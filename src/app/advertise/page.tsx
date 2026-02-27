@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -8,14 +10,14 @@ const ACCENT = "#c8e64a";
 const SHADOW = "#5a7a00";
 
 export const metadata: Metadata = {
-  title: "Advertise on Git City",
+  title: "Advertise on Sol City",
   description:
-    "Advertise on the tallest buildings and across the sky of a 3D city with 1,000+ GitHub developers. Billboards, LED wraps, planes, blimps. Full analytics.",
+    "Advertise on the tallest buildings and across the sky of a 3D city built from Solana protocols. Billboards, LED wraps, planes, blimps. Full analytics.",
   openGraph: {
-    title: "Advertise on Git City",
+    title: "Advertise on Sol City",
     description:
-      "Advertise on the tallest buildings and across the sky of a 3D city with 1,000+ GitHub developers. Billboards, LED wraps, planes, blimps. Full analytics.",
-    siteName: "Git City",
+      "Advertise on the tallest buildings and across the sky of a 3D city built from Solana protocols. Billboards, LED wraps, planes, blimps. Full analytics.",
+    siteName: "Sol City",
     type: "website",
     locale: "en_US",
   },

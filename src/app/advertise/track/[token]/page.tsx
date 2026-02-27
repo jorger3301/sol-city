@@ -6,7 +6,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 const ACCENT = "#c8e64a";
 
 export const metadata: Metadata = {
-  title: "Ad Tracking - Git City Sky Ads",
+  title: "Ad Tracking - Sol City Sky Ads",
   robots: { index: false, follow: false },
 };
 

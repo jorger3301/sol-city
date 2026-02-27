@@ -104,7 +104,7 @@ function SupportContent() {
             className="font-pixel text-[9px] sm:text-[10px] leading-relaxed"
             style={{ color: "rgba(0, 255, 65, 0.5)" }}
           >
-            Git City runs on servers, databases, and API calls. Every new building
+            Sol City runs on servers, databases, and API calls. Every new building
             that goes up, the cost goes up with it. Your support keeps this city
             running.
           </p>

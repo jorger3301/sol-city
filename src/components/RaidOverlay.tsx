@@ -262,8 +262,8 @@ export default function RaidOverlay({ phase, raidData, onSkip, onExit }: Props) 
               <button
                 onClick={() => {
                   const text = raidData.success
-                    ? `I just raided ${defenderLogin}'s building on Git City! ${raidData.attack_score} vs ${raidData.defense_score}`
-                    : `${defenderLogin} defended against my raid on Git City! ${raidData.attack_score} vs ${raidData.defense_score}`;
+                    ? `I just raided ${defenderLogin}'s building on Sol City! ${raidData.attack_score} vs ${raidData.defense_score}`
+                    : `${defenderLogin} defended against my raid on Sol City! ${raidData.attack_score} vs ${raidData.defense_score}`;
                   const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent("https://thegitcity.com")}`;
                   window.open(url, "_blank");
                 }}
