@@ -9,6 +9,12 @@ export interface RaidSinceLast {
   created_at: string;
 }
 
+export interface StreakReward {
+  milestone: number;
+  item_id: string;
+  item_name: string;
+}
+
 export interface StreakData {
   checked_in: boolean;
   already_today: boolean;
@@ -19,6 +25,7 @@ export interface StreakData {
   unseen_count: number;
   kudos_since_last: number;
   raids_since_last?: RaidSinceLast[];
+  streak_reward?: StreakReward | null;
 }
 
 const CACHE_KEY = "gc_checkin";

@@ -140,6 +140,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Item not found or inactive" }, { status: 404 });
   }
 
+  // A11: Check scarcity constraints (temporal + quantity)
+  if (item.available_until && new Date(item.available_until).getTime() <= Date.now()) {
+    return NextResponse.json({ error: "This item is no longer available" }, { status: 410 });
+  }
+  if (item.max_quantity != null) {
+    const { count: soldCount } = await sb
+      .from("purchases")
+      .select("id", { count: "exact", head: true })
+      .eq("item_id", item_id)
+      .eq("status", "completed");
+    if ((soldCount ?? 0) >= item.max_quantity) {
+      return NextResponse.json({ error: "This item is sold out" }, { status: 410 });
+    }
+  }
+
   // Streak freeze: consumable with max 2 stored
   if (item_id === "streak_freeze") {
     const { data: freezeDev } = await sb

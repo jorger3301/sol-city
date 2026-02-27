@@ -421,14 +421,6 @@ function HomeContent() {
   const [rabbitCompletion, setRabbitCompletion] = useState(false);
   const [rabbitHintFlash, setRabbitHintFlash] = useState<string | null>(null);
 
-  // DEBUG: test rabbit cinematic from console — __testRabbitCinematic(3)
-  useEffect(() => {
-    (window as any).__testRabbitCinematic = (sighting = 1) => {
-      setRabbitSighting(sighting);
-      setRabbitCinematic(true);
-    };
-  }, []);
-
   // Growth optimization (A1: sign-in prompt, A5: ad direct open)
   const buildingClickCountRef = useRef(0);
   const signInPromptShownRef = useRef(false);
@@ -1961,6 +1953,34 @@ function HomeContent() {
             >
               Dismiss
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ─── A12: Streak reward toast ─── */}
+      {streakData?.streak_reward && streakData.checked_in && (
+        <div className="fixed top-20 left-1/2 z-50 -translate-x-1/2 w-[calc(100%-1.5rem)] max-w-xs animate-[slide-up_0.2s_ease-out]">
+          <div
+            className="border-[3px] bg-bg-raised/95 px-4 py-3 backdrop-blur-sm text-center"
+            style={{ borderColor: theme.accent }}
+          >
+            <p className="text-lg mb-1">🎁</p>
+            <p className="text-[10px] text-cream normal-case mb-1 font-bold">
+              {streakData.streak_reward.milestone}-day streak reward!
+            </p>
+            <p className="text-[9px] normal-case mb-2" style={{ color: theme.accent }}>
+              You unlocked {streakData.streak_reward.item_name}
+            </p>
+            <Link
+              href={`/shop/${authLogin}`}
+              className="btn-press block w-full py-1.5 text-center text-[9px] text-bg"
+              style={{
+                backgroundColor: theme.accent,
+                boxShadow: `2px 2px 0 0 ${theme.shadow}`,
+              }}
+            >
+              Equip now &rarr;
+            </Link>
           </div>
         </div>
       )}

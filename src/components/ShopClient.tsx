@@ -42,6 +42,36 @@ interface Loadout {
   aura: string | null;
 }
 
+// A11: Scarcity helpers
+function getScarcityInfo(item: ShopItem, soldCount: number) {
+  const now = Date.now();
+
+  // Temporal scarcity
+  if (item.available_until) {
+    const deadline = new Date(item.available_until).getTime();
+    if (deadline <= now) return { expired: true, label: "Ended", color: "#666" };
+    const diff = deadline - now;
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const label = days > 0 ? `${days}d ${hours}h left` : `${hours}h left`;
+    return { expired: false, label, color: days <= 3 ? "#ff6b6b" : "#f0a030", urgency: days <= 3 };
+  }
+
+  // Quantity scarcity
+  if (item.max_quantity != null) {
+    const remaining = Math.max(0, item.max_quantity - soldCount);
+    if (remaining === 0) return { expired: true, label: "Sold out", color: "#666" };
+    return {
+      expired: false,
+      label: `${remaining} left`,
+      color: remaining <= 5 ? "#ff6b6b" : "#f0a030",
+      urgency: remaining <= 5,
+    };
+  }
+
+  return null;
+}
+
 interface Props {
   githubLogin: string;
   developerId: number;
@@ -59,6 +89,8 @@ interface Props {
   giftedTo?: string | null;
   streakFreezesAvailable?: number;
   popularItems?: string[];
+  purchaseCounts?: Record<string, number>;
+  totalPurchaseCounts?: Record<string, number>;
 }
 
 interface PixModalData {
@@ -598,6 +630,8 @@ export default function ShopClient({
   giftedTo = null,
   streakFreezesAvailable = 0,
   popularItems = [],
+  purchaseCounts = {},
+  totalPurchaseCounts = {},
 }: Props) {
   // Loadout state
   const [loadout, setLoadout] = useState<Loadout>(
@@ -1147,11 +1181,26 @@ export default function ShopClient({
                     };
 
                     const isPopular = popularItems.includes(itemId);
+                    const scarcity = shopItem ? getScarcityInfo(shopItem, totalPurchaseCounts[itemId] ?? 0) : null;
+                    const isSoldOut = scarcity?.expired === true;
 
                     return (
                       <div key={itemId} className="relative" data-buy-popover>
-                        {/* A10: Popularity badge */}
-                        {isPopular && !isOwned && !isEquipped && (
+                        {/* A11: Scarcity badge (takes priority over popularity) */}
+                        {scarcity && !isOwned && !isEquipped && (
+                          <span
+                            className="absolute top-1 right-1 z-10 px-1 py-px text-[7px] font-bold"
+                            style={{
+                              backgroundColor: `${scarcity.color}20`,
+                              color: scarcity.color,
+                              border: `1px solid ${scarcity.color}40`,
+                            }}
+                          >
+                            {shopItem?.is_exclusive && "💎 "}{scarcity.label}
+                          </span>
+                        )}
+                        {/* A10: Popularity badge (only if no scarcity badge) */}
+                        {!scarcity && isPopular && !isOwned && !isEquipped && (
                           <span
                             className="absolute top-1 right-1 z-10 px-1 py-px text-[7px] font-bold"
                             style={{
@@ -1164,8 +1213,8 @@ export default function ShopClient({
                           </span>
                         )}
                         <button
-                          onClick={handleClick}
-                          disabled={isBuying}
+                          onClick={isSoldOut && !isOwned ? undefined : handleClick}
+                          disabled={isBuying || (isSoldOut && !isOwned)}
                           onMouseEnter={() => setHighlightItem(itemId)}
                           onMouseLeave={() => setHighlightItem(null)}
                           className={[
@@ -1187,6 +1236,12 @@ export default function ShopClient({
                           >
                             {isBuying ? "..." : badge}
                           </span>
+                          {/* A13: Social proof - weekly purchase count */}
+                          {(purchaseCounts[itemId] ?? 0) >= 3 && !isOwned && (
+                            <span className="mt-0.5 text-[8px] text-dim">
+                              {purchaseCounts[itemId]} purchased this week
+                            </span>
+                          )}
                         </button>
 
                         {/* Buy confirmation popover */}
@@ -1289,11 +1344,27 @@ export default function ShopClient({
                   }
                 };
 
+                const facesScarcity = shopItem ? getScarcityInfo(shopItem, totalPurchaseCounts[itemId] ?? 0) : null;
+                const facesSoldOut = facesScarcity?.expired === true;
+
                 return (
                   <div key={itemId} className="relative" data-buy-popover>
+                    {/* A11: Scarcity badge */}
+                    {facesScarcity && !isFacesOwned && (
+                      <span
+                        className="absolute top-1 right-1 z-10 px-1 py-px text-[7px] font-bold"
+                        style={{
+                          backgroundColor: `${facesScarcity.color}20`,
+                          color: facesScarcity.color,
+                          border: `1px solid ${facesScarcity.color}40`,
+                        }}
+                      >
+                        {shopItem?.is_exclusive && "💎 "}{facesScarcity.label}
+                      </span>
+                    )}
                     <button
-                      onClick={handleClick}
-                      disabled={isBuying}
+                      onClick={facesSoldOut && !isFacesOwned ? undefined : handleClick}
+                      disabled={isBuying || (facesSoldOut && !isFacesOwned)}
                       onMouseEnter={() => setHighlightItem(itemId)}
                       onMouseLeave={() => setHighlightItem(null)}
                       className={[
@@ -1313,6 +1384,12 @@ export default function ShopClient({
                       >
                         {isBuying ? "..." : badge}
                       </span>
+                      {/* A13: Social proof */}
+                      {(purchaseCounts[itemId] ?? 0) >= 3 && !isFacesOwned && (
+                        <span className="mt-0.5 text-[8px] text-dim">
+                          {purchaseCounts[itemId]} purchased this week
+                        </span>
+                      )}
                     </button>
 
                     {/* Buy confirmation popover */}

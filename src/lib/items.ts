@@ -13,6 +13,10 @@ export interface ShopItem {
   zone: "crown" | "roof" | "aura" | "faces" | null;
   metadata: Record<string, unknown>;
   created_at: string;
+  // A11: Seasonal/limited items
+  available_until: string | null;
+  max_quantity: number | null;
+  is_exclusive: boolean;
 }
 
 export interface PurchaseRecord {

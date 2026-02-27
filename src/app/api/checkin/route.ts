@@ -3,6 +3,75 @@ import { createServerSupabase } from "@/lib/supabase-server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { rateLimit } from "@/lib/rate-limit";
 import { checkAchievements } from "@/lib/achievements";
+import { ITEM_NAMES } from "@/lib/zones";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+// A12: Streak reward milestones — {milestone: days, pool: item_ids to pick from}
+const STREAK_MILESTONES = [
+  { milestone: 3,  pool: ["flag"] },
+  { milestone: 7,  pool: ["satellite_dish", "antenna_array", "rooftop_garden", "neon_trim"] },
+  { milestone: 14, pool: ["neon_outline", "rooftop_fire", "hologram_ring"] },
+  { milestone: 30, pool: ["lightning_aura", "pool_party", "crown_item"] },
+];
+
+async function grantStreakReward(
+  sb: SupabaseClient,
+  developerId: number,
+  streak: number,
+): Promise<{ milestone: number; item_id: string; item_name: string } | null> {
+  // Find highest unclaimed milestone the user qualifies for
+  for (const tier of [...STREAK_MILESTONES].reverse()) {
+    if (streak < tier.milestone) continue;
+
+    // Check if already claimed
+    const { data: existing } = await sb
+      .from("streak_rewards")
+      .select("id")
+      .eq("developer_id", developerId)
+      .eq("milestone", tier.milestone)
+      .maybeSingle();
+    if (existing) continue;
+
+    // Pick a random item from pool that user doesn't own yet
+    const { data: ownedRows } = await sb
+      .from("purchases")
+      .select("item_id")
+      .eq("developer_id", developerId)
+      .eq("status", "completed");
+    const ownedSet = new Set((ownedRows ?? []).map((r: { item_id: string }) => r.item_id));
+
+    const unowned = tier.pool.filter((id) => !ownedSet.has(id));
+    const itemId = unowned.length > 0
+      ? unowned[Math.floor(Math.random() * unowned.length)]
+      : tier.pool[Math.floor(Math.random() * tier.pool.length)]; // fallback: grant anyway
+
+    // Grant the item
+    await sb.from("purchases").insert({
+      developer_id: developerId,
+      item_id: itemId,
+      provider: "free",
+      provider_tx_id: `streak_reward_${tier.milestone}_${developerId}`,
+      amount_cents: 0,
+      currency: "usd",
+      status: "completed",
+    });
+
+    // Record the reward
+    await sb.from("streak_rewards").insert({
+      developer_id: developerId,
+      milestone: tier.milestone,
+      item_id: itemId,
+    });
+
+    return {
+      milestone: tier.milestone,
+      item_id: itemId,
+      item_name: ITEM_NAMES[itemId] ?? itemId,
+    };
+  }
+
+  return null;
+}
 
 // Lightweight GitHub fetch: only current week contributions
 async function fetchWeeklyContributions(login: string): Promise<number | null> {
@@ -118,6 +187,7 @@ export async function POST() {
   }
 
   let newAchievements: string[] = [];
+  let streakReward: { milestone: number; item_id: string; item_name: string } | null = null;
 
   if (checkinResult.checked_in) {
     // Check achievements with updated streak
@@ -149,6 +219,9 @@ export async function POST() {
       });
     }
 
+    // A12: Streak rewards - grant free items at milestones
+    streakReward = await grantStreakReward(sb, dev.id, checkinResult.streak);
+
     // Insert feed event
     await sb.from("activity_feed").insert({
       event_type: "streak_checkin",
@@ -157,6 +230,7 @@ export async function POST() {
         login: githubLogin,
         streak: checkinResult.streak,
         was_frozen: checkinResult.was_frozen ?? false,
+        reward: streakReward?.item_id ?? null,
       },
     });
   }
@@ -217,5 +291,6 @@ export async function POST() {
     unseen_count: unseenCount ?? 0,
     kudos_since_last: recentKudos?.length ?? 0,
     raids_since_last: raidsSinceLast,
+    streak_reward: streakReward,
   });
 }

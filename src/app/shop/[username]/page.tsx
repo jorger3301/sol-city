@@ -147,10 +147,10 @@ export default async function ShopPage({ params, searchParams }: Props) {
       .eq("developer_id", dev.id)
       .eq("item_id", "raid_loadout")
       .maybeSingle(),
-    // A10: Count purchases per item for popularity badges
+    // A10+A13: Count purchases per item for popularity badges + social proof
     sb
       .from("purchases")
-      .select("item_id")
+      .select("item_id, created_at")
       .eq("status", "completed"),
   ]);
 
@@ -158,8 +158,13 @@ export default async function ShopPage({ params, searchParams }: Props) {
 
   // A10: Compute top 3 most purchased items (min 5 purchases)
   const purchaseCounts: Record<string, number> = {};
+  const weeklyPurchaseCounts: Record<string, number> = {};
+  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
   for (const p of allPurchasesResult.data ?? []) {
     purchaseCounts[p.item_id] = (purchaseCounts[p.item_id] ?? 0) + 1;
+    if (new Date(p.created_at).getTime() > weekAgo) {
+      weeklyPurchaseCounts[p.item_id] = (weeklyPurchaseCounts[p.item_id] ?? 0) + 1;
+    }
   }
   const popularItems = Object.entries(purchaseCounts)
     .filter(([, count]) => count >= 5)
@@ -249,6 +254,8 @@ export default async function ShopPage({ params, searchParams }: Props) {
           giftedTo={giftedTo ?? null}
           streakFreezesAvailable={dev.streak_freezes_available ?? 0}
           popularItems={popularItems}
+          purchaseCounts={weeklyPurchaseCounts}
+          totalPurchaseCounts={purchaseCounts}
         />
 
         {/* Back links */}
