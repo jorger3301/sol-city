@@ -128,12 +128,12 @@ function getDevClass(login: string) {
   return DEV_CLASSES[((h % DEV_CLASSES.length) + DEV_CLASSES.length) % DEV_CLASSES.length];
 }
 
-const GITC_CA = "0xd523f92f5f313288cf69ac9ca456b8a7d7a6dba3";
-function formatTokenPrice(n: number) {
-  if (n < 0.00001) return `$${n.toExponential(2)}`;
-  if (n < 0.01) return `$${n.toFixed(6)}`;
-  if (n < 1) return `$${n.toFixed(4)}`;
-  return `$${n.toFixed(2)}`;
+function fmtUsd(val: number): string {
+  if (val >= 1e9) return "$" + (val / 1e9).toFixed(2) + "B";
+  if (val >= 1e6) return "$" + (val / 1e6).toFixed(1) + "M";
+  if (val >= 1e3) return "$" + (val / 1e3).toFixed(0) + "K";
+  if (val > 0) return "$" + val.toLocaleString();
+  return "—";
 }
 
 interface CityStats {
@@ -309,7 +309,7 @@ function MiniLeaderboard({ buildings, accent }: { buildings: CityBuilding[]; acc
         {sorted.map((b, i) => (
           <a
             key={b.login}
-            href={`/dev/${b.login}`}
+            href={`/${b.login}`}
             className="flex items-center justify-between px-3 py-1.5 transition-colors hover:bg-bg-card"
           >
             <span className="flex items-center gap-2 overflow-hidden">
@@ -409,8 +409,6 @@ function HomeContent() {
   const [compareLang, setCompareLang] = useState<"en" | "pt">("en");
   const [clickedAd, setClickedAd] = useState<import("@/lib/skyAds").SkyAd | null>(null);
   const [skyAds, setSkyAds] = useState<import("@/lib/skyAds").SkyAd[]>(DEFAULT_SKY_ADS);
-  const [gitcPrice, setGitcPrice] = useState<{ priceUsd: string; change24h: number } | null>(null);
-  const [caCopied, setCaCopied] = useState(false);
   const [pillModalOpen, setPillModalOpen] = useState(false);
   const [founderMessageOpen, setFounderMessageOpen] = useState(false);
   const [rabbitCinematic, setRabbitCinematic] = useState(false);
@@ -479,23 +477,6 @@ function HomeContent() {
       .catch(() => {});
   }, []);
 
-  // Fetch $GITC price from DexScreener + poll every 30s
-  useEffect(() => {
-    let cancelled = false;
-    const fetchPrice = () =>
-      fetch(`https://api.dexscreener.com/latest/dex/tokens/${GITC_CA}`)
-        .then((r) => r.json())
-        .then((d) => {
-          if (cancelled || !d.pairs?.[0]) return;
-          const p = d.pairs[0];
-          setGitcPrice({ priceUsd: p.priceUsd, change24h: p.priceChange?.h24 ?? 0 });
-        })
-        .catch(() => {});
-    fetchPrice();
-    const id = setInterval(fetchPrice, 30_000);
-    return () => { cancelled = true; clearInterval(id); };
-  }, []);
-
   // Derived — second focused building for dual-focus camera
   const focusedBuildingB = comparePair ? comparePair[1].login : null;
 
@@ -513,11 +494,7 @@ function HomeContent() {
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  const copyCA = useCallback(() => {
-    navigator.clipboard.writeText(GITC_CA);
-    setCaCopied(true);
-    setTimeout(() => setCaCopied(false), 2000);
-  }, []);
+
 
   // Auth state listener
   useEffect(() => {
@@ -1529,25 +1506,6 @@ function HomeContent() {
             </button>
           </div>
 
-          {/* $GITC price widget (top-center, desktop only) */}
-          {gitcPrice && (
-            <div className="pointer-events-auto absolute top-3 left-1/2 -translate-x-1/2 hidden sm:block sm:top-4">
-              <button
-                onClick={copyCA}
-                className="flex items-center gap-2 border-[3px] border-border bg-bg/70 px-3 py-1.5 text-[10px] backdrop-blur-sm transition-colors"
-                onMouseEnter={(e) => (e.currentTarget.style.borderColor = theme.accent + "80")}
-                onMouseLeave={(e) => (e.currentTarget.style.borderColor = "")}
-              >
-                <span style={{ color: theme.accent }}>$GITC</span>
-                <span className="text-cream">{formatTokenPrice(parseFloat(gitcPrice.priceUsd))}</span>
-                <span style={{ color: gitcPrice.change24h >= 0 ? "#4ade80" : "#f87171" }}>
-                  {gitcPrice.change24h >= 0 ? "+" : ""}{gitcPrice.change24h.toFixed(1)}%
-                </span>
-                <span className="text-dim">{caCopied ? "Copied!" : "Copy CA"}</span>
-              </button>
-            </div>
-          )}
-
           {/* Theme switcher (bottom-left) — same position as main controls */}
           <div className="pointer-events-auto fixed bottom-10 left-3 z-[25] flex items-center gap-2 sm:left-4">
             <button
@@ -1590,7 +1548,7 @@ function HomeContent() {
 
       {/* Shop & Auth moved to center buttons area */}
 
-      {/* ─── GitHub Badge (mobile: top-center, desktop: top-right) ─── */}
+      {/* ─── Badges (mobile: top-center, desktop: top-right) ─── */}
       {!flyMode && !introMode && !rabbitCinematic && (
         <div className="pointer-events-auto fixed top-3 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 sm:left-auto sm:right-4 sm:top-4 sm:translate-x-0">
           <a
@@ -1603,7 +1561,7 @@ function HomeContent() {
             <span className="text-cream">Star</span>
           </a>
           <a
-            href="https://github.com/sponsors/srizzon"
+            href="https://github.com/sponsors/jorger3301"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 border-[3px] border-border bg-bg/70 px-2.5 py-1 text-[10px] backdrop-blur-sm transition-colors hover:border-border-light"
@@ -1647,28 +1605,6 @@ function HomeContent() {
                   @samuelrizzondev
                 </a>
               </p>
-              {gitcPrice && (
-                <button
-                  onClick={copyCA}
-                  className="mt-1.5 inline-flex items-center gap-1.5 border-[2px] border-border bg-bg/70 px-2.5 py-1 text-[9px] backdrop-blur-sm transition-colors"
-                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = theme.accent + "80")}
-                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = "")}
-                >
-                  <span style={{ color: theme.accent }}>$GITC</span>
-                  <span className="text-cream">{formatTokenPrice(parseFloat(gitcPrice.priceUsd))}</span>
-                  <span style={{ color: gitcPrice.change24h >= 0 ? "#4ade80" : "#f87171" }}>
-                    {gitcPrice.change24h >= 0 ? "+" : ""}{gitcPrice.change24h.toFixed(1)}%
-                  </span>
-                  <span className="text-dim">
-                    {caCopied ? "Copied!" : `${GITC_CA.slice(0, 6)}...${GITC_CA.slice(-4)}`}
-                  </span>
-                  {!caCopied && (
-                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-dim">
-                      <rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-                    </svg>
-                  )}
-                </button>
-              )}
             </div>
 
             {/* Search */}
@@ -1814,7 +1750,7 @@ function HomeContent() {
                       </button>
                     )}
                     <Link
-                      href={`/dev/${authLogin}`}
+                      href={`/${authLogin}`}
                       className="flex items-center gap-1.5 border-[3px] border-border bg-bg/80 px-3 py-1.5 text-[10px] text-cream normal-case backdrop-blur-sm transition-colors hover:border-border-light"
                       style={streakData && streakData.streak > 0 && streakData.checked_in ? { animation: "streak-pulse 1.5s ease-in-out 2" } : undefined}
                     >
@@ -1939,7 +1875,7 @@ function HomeContent() {
               Neon Outline, Particle Aura, Spotlight, and more
             </p>
             <Link
-              href={myBuilding?.claimed ? `/shop/${ghostPreviewLogin}` : `/dev/${ghostPreviewLogin}`}
+              href={myBuilding?.claimed ? `/shop/${ghostPreviewLogin}` : `/${ghostPreviewLogin}`}
               onClick={() => setGhostPreviewLogin(null)}
               className="btn-press block w-full py-2 text-center text-[10px] text-bg"
               style={{
@@ -2059,9 +1995,9 @@ function HomeContent() {
               <div className="grid grid-cols-3 gap-px bg-border/30 mx-4 mb-3 border border-border/50">
                 {[
                   { label: "Rank", value: `#${selectedBuilding.rank}` },
-                  { label: "Contribs", value: selectedBuilding.contributions.toLocaleString() },
-                  { label: "Repos", value: selectedBuilding.public_repos.toLocaleString() },
-                  { label: "Stars", value: selectedBuilding.total_stars.toLocaleString() },
+                  { label: "TVL", value: fmtUsd(selectedBuilding.contributions) },
+                  { label: "Volume", value: fmtUsd(selectedBuilding.total_stars) },
+                  { label: "Category", value: selectedBuilding.primary_language?.split("|")[0]?.trim() ?? "—" },
                   { label: "Kudos", value: (selectedBuilding.kudos_count ?? 0).toLocaleString() },
                   { label: "Visits", value: (selectedBuilding.visit_count ?? 0).toLocaleString() },
                 ].map((s) => (
@@ -2102,7 +2038,7 @@ function HomeContent() {
                     })}
                   {selectedBuilding.achievements.length > 3 && (
                     <Link
-                      href={`/dev/${selectedBuilding.login}`}
+                      href={`/${selectedBuilding.login}`}
                       className="px-1.5 py-0.5 text-[8px] transition-colors hover:text-cream"
                       style={{ color: theme.accent }}
                     >
@@ -2291,47 +2227,24 @@ function HomeContent() {
 
               {/* Actions */}
               <div className="flex gap-2 p-4 pt-0 pb-5 sm:pb-4">
-                {selectedBuilding.login.toLowerCase() === authLogin ? (
-                  <>
-                    <Link
-                      href={`/shop/${selectedBuilding.login}?tab=loadout`}
-                      className="btn-press flex-1 py-2 text-center text-[10px] text-bg"
-                      style={{
-                        backgroundColor: theme.accent,
-                        boxShadow: `2px 2px 0 0 ${theme.shadow}`,
-                      }}
-                    >
-                      Loadout
-                    </Link>
-                    <Link
-                      href={`/dev/${selectedBuilding.login}`}
-                      className="btn-press flex-1 border-[2px] border-border py-2 text-center text-[10px] text-cream transition-colors hover:border-border-light"
-                    >
-                      Profile
-                    </Link>
-                  </>
-                ) : (
-                  <>
-                    <Link
-                      href={`/${selectedBuilding.login}`}
-                      className="btn-press flex-1 py-2 text-center text-[10px] text-bg"
-                      style={{
-                        backgroundColor: theme.accent,
-                        boxShadow: `2px 2px 0 0 ${theme.shadow}`,
-                      }}
-                    >
-                      View Protocol
-                    </Link>
-                    <a
-                      href={`https://defillama.com/protocol/${selectedBuilding.login}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-press flex-1 border-[2px] border-border py-2 text-center text-[10px] text-cream transition-colors hover:border-border-light"
-                    >
-                      DeFiLlama
-                    </a>
-                  </>
-                )}
+                <Link
+                  href={`/${selectedBuilding.login}`}
+                  className="btn-press flex-1 py-2 text-center text-[10px] text-bg"
+                  style={{
+                    backgroundColor: theme.accent,
+                    boxShadow: `2px 2px 0 0 ${theme.shadow}`,
+                  }}
+                >
+                  View Protocol
+                </Link>
+                <a
+                  href={`https://defillama.com/protocol/${selectedBuilding.login}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-press flex-1 border-[2px] border-border py-2 text-center text-[10px] text-cream transition-colors hover:border-border-light"
+                >
+                  DeFiLlama
+                </a>
               </div>
             </div>
           </div>
@@ -2455,7 +2368,7 @@ function HomeContent() {
 
               {/* ── Header: Avatars + VS ── */}
               <div className="flex items-start justify-center gap-5 px-5 pt-1 pb-4 sm:pt-4">
-                <Link href={`/dev/${comparePair[0].login}`} className="flex flex-col items-center gap-1.5 group w-[110px]">
+                <Link href={`/${comparePair[0].login}`} className="flex flex-col items-center gap-1.5 group w-[110px]">
                   {comparePair[0].avatar_url && (
                     <Image
                       src={comparePair[0].avatar_url}
@@ -2475,7 +2388,7 @@ function HomeContent() {
 
                 <span className="text-base shrink-0 pt-4" style={{ color: theme.accent }}>VS</span>
 
-                <Link href={`/dev/${comparePair[1].login}`} className="flex flex-col items-center gap-1.5 group w-[110px]">
+                <Link href={`/${comparePair[1].login}`} className="flex flex-col items-center gap-1.5 group w-[110px]">
                   {comparePair[1].avatar_url && (
                     <Image
                       src={comparePair[1].avatar_url}
@@ -2739,7 +2652,7 @@ function HomeContent() {
 
             {/* View profile link */}
             <a
-              href={`/dev/${shareData.login}`}
+              href={`/${shareData.login}`}
               className="mt-4 inline-block text-[9px] text-muted transition-colors hover:text-cream normal-case"
             >
               View full profile &rarr;

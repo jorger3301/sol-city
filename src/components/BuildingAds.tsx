@@ -4,7 +4,7 @@ import { useRef, useMemo, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { isBuildingAd, type SkyAd } from "@/lib/skyAds";
-import type { CityBuilding } from "@/lib/github";
+import type { CityBuilding } from "@/lib/city-layout";
 import { createLedTexture, ViewabilityTracker, SCROLL_SPEED, markAdPointerConsumed, registerAdMesh, unregisterAdMesh } from "./SkyAds";
 
 // ─── Ref helper — registers mesh for capture-phase pointer guard ─

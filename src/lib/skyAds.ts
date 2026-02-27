@@ -55,7 +55,7 @@ export function buildAdLink(ad: SkyAd): string | undefined {
   if (ad.link.startsWith("mailto:")) return ad.link;
   try {
     const url = new URL(ad.link);
-    url.searchParams.set("utm_source", "gitcity");
+    url.searchParams.set("utm_source", "solcity");
     url.searchParams.set("utm_medium", "sky_ad");
     url.searchParams.set("utm_campaign", ad.id);
     url.searchParams.set("utm_content", ad.vehicle);
@@ -77,10 +77,10 @@ export function trackAdEvent(adId: string, eventType: "impression" | "click" | "
 
 export const DEFAULT_SKY_ADS: SkyAd[] = [
   {
-    id: "gitcity",
-    text: "THEGITCITY.COM ★ YOUR CODE, YOUR CITY ★ THEGITCITY.COM",
+    id: "solcity",
+    text: "SOLCITY.XYZ ★ SOLANA PROTOCOLS IN 3D ★ SOLCITY.XYZ",
     brand: "Sol City",
-    description: "A city built from GitHub contributions. Search your username and find your building among thousands of developers.",
+    description: "Solana protocols visualized as buildings in a 3D city. Explore the skyline.",
     color: "#f8d880",
     bgColor: "#1a1018",
     link: "https://solcity.xyz",

@@ -27,10 +27,10 @@ export default function ShareButtons({
 
   const profileUrl =
     typeof window !== "undefined"
-      ? `${window.location.origin}/dev/${login}`
-      : `/dev/${login}`;
+      ? `${window.location.origin}/${login}`
+      : `/${login}`;
 
-  const tweetText = `My GitHub just turned into a building. ${contributions.toLocaleString()} contributions, Rank #${rank ?? "?"}. What does yours look like?`;
+  const tweetText = `Check out this protocol on Sol City! Rank #${rank ?? "?"}. Solana protocols visualized as buildings in a 3D city.`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(profileUrl);
@@ -50,7 +50,7 @@ export default function ShareButtons({
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `gitcity-${login}-${format}.png`;
+      a.download = `solcity-${login}-${format}.png`;
       document.body.appendChild(a);
       a.click();
       a.remove();

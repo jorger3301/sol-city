@@ -6,8 +6,8 @@ import { OrbitControls, useGLTF, Stats } from "@react-three/drei";
 import * as THREE from "three";
 import CityScene from "./CityScene";
 import type { FocusInfo } from "./CityScene";
-import type { CityBuilding, CityPlaza, CityDecoration, CityRiver, CityBridge } from "@/lib/github";
-import { seededRandom } from "@/lib/github";
+import type { CityBuilding, CityPlaza, CityDecoration, CityRiver, CityBridge } from "@/lib/city-layout";
+import { seededRandom } from "@/lib/city-layout";
 import SkyAds from "./SkyAds";
 import BuildingAds from "./BuildingAds";
 import type { SkyAd } from "@/lib/skyAds";
@@ -1264,7 +1264,7 @@ function RiverText({ river }: { river: CityRiver }) {
 
     ctx.fillStyle = "rgba(255,255,255,0.4)";
     ctx.font = 'bold 100px "Silkscreen", monospace';
-    ctx.fillText("$GITC  -  CA: 0xd523f92f5f313288cf69ac9ca456b8a7d7a6dba3", 0, 0);
+    ctx.fillText("SOL CITY  -  SOLANA PROTOCOLS IN 3D  -  SOLCITY.XYZ", 0, 0);
 
     ctx.restore();
 

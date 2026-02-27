@@ -6,7 +6,7 @@ import { createServerSupabase } from "@/lib/supabase-server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getOwnedItems } from "@/lib/items";
 import type { ShopItem } from "@/lib/items";
-import { calcBuildingDims } from "@/lib/github";
+import { calcBuildingDims } from "@/lib/city-layout";
 import ShopClient from "@/components/ShopClient";
 
 interface Props {
@@ -85,7 +85,7 @@ export default async function ShopPage({ params, searchParams }: Props) {
             <p className="mt-3 text-[10px] text-muted normal-case">
               {!dev.claimed
                 ? `@${dev.github_login} needs to claim their building before the shop is available.`
-                : "Only the building owner can customize it. Sign in with the matching GitHub account."}
+                : "Only the building owner can customize it. Sign in with the matching account."}
             </p>
             <Link
               href={`/dev/${dev.github_login}`}

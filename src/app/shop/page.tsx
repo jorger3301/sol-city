@@ -72,7 +72,7 @@ export default async function ShopLanding() {
               <div className="flex gap-3 border-[2px] border-border bg-bg-card px-4 py-3">
                 <span style={{ color: ACCENT }}>1.</span>
                 <span>
-                  Sign in with <span className="text-cream">GitHub</span> to
+                  <span className="text-cream">Sign in</span> to
                   connect your account
                 </span>
               </div>

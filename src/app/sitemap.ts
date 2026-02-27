@@ -10,14 +10,14 @@ const BASE_URL =
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = getSupabaseAdmin();
 
-  const { data: developers } = await supabase
-    .from("developers")
-    .select("github_login, updated_at")
+  const { data: protocols } = await supabase
+    .from("protocols")
+    .select("slug, updated_at")
     .order("rank", { ascending: true, nullsFirst: false });
 
-  const devEntries: MetadataRoute.Sitemap = (developers ?? []).map((dev) => ({
-    url: `${BASE_URL}/dev/${dev.github_login}`,
-    lastModified: dev.updated_at ?? undefined,
+  const protocolEntries: MetadataRoute.Sitemap = (protocols ?? []).map((p) => ({
+    url: `${BASE_URL}/${p.slug}`,
+    lastModified: p.updated_at ?? undefined,
     changeFrequency: "daily",
     priority: 0.7,
   }));
@@ -33,6 +33,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "hourly",
       priority: 0.8,
     },
-    ...devEntries,
+    ...protocolEntries,
   ];
 }

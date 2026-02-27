@@ -2,7 +2,7 @@
 
 import { useState, useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
-import type { CityBuilding } from "@/lib/github";
+import type { CityBuilding } from "@/lib/city-layout";
 import type { BuildingColors } from "./CityCanvas";
 import { ClaimedGlow, BuildingItemEffects } from "./Building3D";
 import { StreakFlame, NeonOutline, ParticleAura, SpotlightEffect } from "./BuildingEffects";

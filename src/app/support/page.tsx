@@ -230,7 +230,7 @@ function SupportContent() {
             02 // GITHUB SPONSORS
           </span>
           <a
-            href="https://github.com/sponsors/srizzon"
+            href="https://github.com/sponsors/jorger3301"
             target="_blank"
             rel="noopener noreferrer"
             className="font-pixel text-[10px] sm:text-[11px] px-5 py-2.5 tracking-wider transition-all duration-200 cursor-pointer inline-block w-fit"
@@ -249,7 +249,7 @@ function SupportContent() {
               e.currentTarget.style.borderColor = "rgba(0, 255, 65, 0.35)";
             }}
           >
-            github.com/sponsors/srizzon
+            github.com/sponsors/jorger3301
           </a>
         </div>
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import type { TopRepo } from "@/lib/github";
+import type { TopRepo } from "@/lib/city-layout";
 
 // ─── Rate Limiting ───────────────────────────────────────────
 
@@ -34,7 +34,7 @@ async function checkRateLimit(ip: string): Promise<boolean> {
 function ghHeaders(): HeadersInit {
   const h: HeadersInit = {
     Accept: "application/vnd.github.v3+json",
-    "User-Agent": "git-city-app",
+    "User-Agent": "sol-city-app",
   };
   if (process.env.GITHUB_TOKEN) {
     h.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;

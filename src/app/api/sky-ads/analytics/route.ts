@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-const OWNER_LOGIN = "srizzon";
+const OWNER_LOGIN = "jorger3301";
 
 export async function GET(request: Request) {
   // Auth check

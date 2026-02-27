@@ -6,12 +6,12 @@
   "homepage": "https://solcity.xyz",
   "repository": {
     "type": "git",
-    "url": "https://github.com/srizzon/sol-city"
+    "url": "https://github.com/jorger3301/sol-city"
   },
   "author": "Samuel Rizzon",
   "license": "AGPL-3.0",
   "keywords": [
-    "github",
+    "solana",
     "3d",
     "visualization",
     "three-js",

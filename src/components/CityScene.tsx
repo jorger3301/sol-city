@@ -7,7 +7,7 @@ import { createWindowAtlas, FocusBeacon } from "./Building3D";
 import InstancedBuildings from "./InstancedBuildings";
 import InstancedLabels from "./InstancedLabels";
 import EffectsLayer from "./EffectsLayer";
-import type { CityBuilding } from "@/lib/github";
+import type { CityBuilding } from "@/lib/city-layout";
 import type { BuildingColors } from "./CityCanvas";
 
 const GRID_CELL_SIZE = 200;
