@@ -1,12 +1,12 @@
 {
-  "name": "git-city",
+  "name": "sol-city",
   "version": "0.1.0",
   "private": true,
-  "description": "Your GitHub profile as a 3D pixel art building in an interactive city",
-  "homepage": "https://thegitcity.com",
+  "description": "Solana protocols as a 3D pixel art city",
+  "homepage": "https://solcity.xyz",
   "repository": {
     "type": "git",
-    "url": "https://github.com/srizzon/git-city"
+    "url": "https://github.com/srizzon/sol-city"
   },
   "author": "Samuel Rizzon",
   "license": "AGPL-3.0",
@@ -28,6 +28,7 @@
   "dependencies": {
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",
+    "@solana/connector": "^0.2.4",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.97.0",
     "@types/three": "^0.183.0",
@@ -49,6 +50,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "pg": "^8.19.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
