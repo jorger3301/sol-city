@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useState, useMemo } from "react";
+import { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, useGLTF, Stats } from "@react-three/drei";
 import * as THREE from "three";
@@ -1503,6 +1503,29 @@ export default function CityCanvas({ buildings, plazas, decorations, river, brid
   const t = THEMES[themeIndex] ?? THEMES[0];
   const showPerf = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("perf");
 
+  // ─── WebGL context loss recovery ─────────────────────────────
+  const [contextLost, setContextLost] = useState(false);
+  const [canvasKey, setCanvasKey] = useState(0);
+
+  const handleCreated = useCallback(({ gl }: { gl: THREE.WebGLRenderer }) => {
+    const canvas = gl.domElement;
+    canvas.addEventListener("webglcontextlost", (e) => {
+      e.preventDefault();
+      setContextLost(true);
+    });
+    canvas.addEventListener("webglcontextrestored", () => {
+      setContextLost(false);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!contextLost) return;
+    const timer = setTimeout(() => {
+      setCanvasKey((k) => k + 1);
+      setContextLost(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [contextLost]);
 
   const cityRadius = useMemo(() => {
     let max = 200;
@@ -1513,12 +1536,24 @@ export default function CityCanvas({ buildings, plazas, decorations, river, brid
     return max;
   }, [buildings]);
 
+  if (contextLost) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-bg" style={{ zIndex: 0 }}>
+        <span className="font-pixel text-[10px] text-muted animate-pulse tracking-widest">
+          RECOVERING GPU...
+        </span>
+      </div>
+    );
+  }
+
   return (
     <Canvas
+      key={canvasKey}
       camera={{ position: [400, 450, 600], fov: 55, near: 0.5, far: 4000 }}
       dpr={[1, 1.5]}
       gl={{ antialias: false, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.3 }}
       style={{ position: "fixed", inset: 0, width: "100vw", height: "100vh" }}
+      onCreated={handleCreated}
     >
       {showPerf && <Stats />}
       <fog attach="fog" args={[t.fogColor, t.fogNear, t.fogFar]} key={`fog-${themeIndex}`} />
