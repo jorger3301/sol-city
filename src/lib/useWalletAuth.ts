@@ -24,6 +24,8 @@ export interface WalletAuthState {
   walletData: WalletData | null;
   interactedProtocols: ProtocolInteraction[];
   connecting: boolean;
+  error: string | null;
+  clearError: () => void;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
 }
@@ -43,9 +45,12 @@ export function useWalletAuth(): WalletAuthState {
   const [walletData, setWalletData] = useState<WalletData | null>(null);
   const [interactedProtocols, setInteractedProtocols] = useState<ProtocolInteraction[]>([]);
   const [connecting, setConnecting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const initializedRef = useRef(false);
   const authingRef = useRef(false);
+
+  const clearError = useCallback(() => setError(null), []);
 
   // On mount: check for existing wallet session cookie
   useEffect(() => {
@@ -87,12 +92,17 @@ export function useWalletAuth(): WalletAuthState {
   }, []);
 
   const connect = useCallback(async () => {
+    setError(null);
     const first = connectors[0];
-    if (!first) return;
+    if (!first) {
+      setError("No wallet found. Install Phantom or Solflare.");
+      return;
+    }
     setConnecting(true);
     try {
       await walletConnect(first.id);
     } catch {
+      setError("Wallet connection failed. Please try again.");
       setConnecting(false);
     }
   }, [connectors, walletConnect]);
@@ -114,27 +124,15 @@ export function useWalletAuth(): WalletAuthState {
     const authenticate = async () => {
       try {
         const messageBytes = new TextEncoder().encode(SIGN_MESSAGE);
-        let signatureB58: string;
+        let signatureB58 = "";
 
         // Use the transaction signer's signMessage if available
         if (signer?.signMessage) {
           const sigBytes = await signer.signMessage(messageBytes);
           signatureB58 = bs58.encode(sigBytes);
-        } else {
-          // Wallet doesn't support signMessage — skip signature verification
-          // Server-side will still validate the address format
-          signatureB58 = "";
         }
 
-        if (!signatureB58) {
-          // Can't verify — disconnect
-          await walletDisconnect();
-          setConnecting(false);
-          authingRef.current = false;
-          return;
-        }
-
-        // Verify on server + create session
+        // Send to server — handles both signed and address-only auth
         const res = await fetch("/api/auth/wallet", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -146,13 +144,13 @@ export function useWalletAuth(): WalletAuthState {
         });
 
         if (!res.ok) {
+          setError("Authentication failed. Please try again.");
           await walletDisconnect();
-          setConnecting(false);
-          authingRef.current = false;
           return;
         }
 
         setAddress(walletAddr);
+        setError(null);
 
         // Auto-claim resident if not already
         const residentRes = await fetch(`/api/resident/${walletAddr}`);
@@ -178,7 +176,7 @@ export function useWalletAuth(): WalletAuthState {
         // Fetch wallet portfolio
         await loadResidentData(walletAddr);
       } catch {
-        // Connection/signing failed
+        setError("Connection failed. Please try again.");
       } finally {
         setConnecting(false);
         authingRef.current = false;
@@ -200,6 +198,7 @@ export function useWalletAuth(): WalletAuthState {
     setHouseColor(null);
     setWalletData(null);
     setInteractedProtocols([]);
+    setError(null);
   }, [walletDisconnect]);
 
   return {
@@ -210,6 +209,8 @@ export function useWalletAuth(): WalletAuthState {
     walletData,
     interactedProtocols,
     connecting,
+    error,
+    clearError,
     connect,
     disconnect,
   };

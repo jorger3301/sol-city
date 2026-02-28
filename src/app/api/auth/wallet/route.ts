@@ -42,29 +42,31 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!message || !signature) {
+    if (!message) {
       return NextResponse.json(
-        { error: "Missing message or signature" },
+        { error: "Missing message" },
         { status: 400 },
       );
     }
 
-    // Verify the signature: the wallet must have signed the message
-    const messageBytes = new TextEncoder().encode(message);
-    const signatureBytes = bs58.decode(signature);
-    const publicKeyBytes = bs58.decode(address);
+    // Verify signature if provided (some mobile wallets don't support signMessage)
+    if (signature) {
+      const messageBytes = new TextEncoder().encode(message);
+      const signatureBytes = bs58.decode(signature);
+      const publicKeyBytes = bs58.decode(address);
 
-    const verified = nacl.sign.detached.verify(
-      messageBytes,
-      signatureBytes,
-      publicKeyBytes,
-    );
-
-    if (!verified) {
-      return NextResponse.json(
-        { error: "Invalid signature" },
-        { status: 401 },
+      const verified = nacl.sign.detached.verify(
+        messageBytes,
+        signatureBytes,
+        publicKeyBytes,
       );
+
+      if (!verified) {
+        return NextResponse.json(
+          { error: "Invalid signature" },
+          { status: 401 },
+        );
+      }
     }
 
     await setWalletSession(address);

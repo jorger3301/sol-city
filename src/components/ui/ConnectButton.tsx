@@ -2,6 +2,7 @@
 
 import { useWallet, useConnectWallet, useDisconnectWallet, useWalletConnectors } from "@solana/connector";
 import { truncateAddress } from "@/lib/api/utils";
+import { useState } from "react";
 
 interface Props {
   accent: string;
@@ -13,12 +14,19 @@ export default function ConnectButton({ accent, shadow }: Props) {
   const { connect } = useConnectWallet();
   const { disconnect } = useDisconnectWallet();
   const connectors = useWalletConnectors();
+  const [error, setError] = useState<string | null>(null);
 
   const handleConnect = async () => {
-    // Connect to the first available wallet connector
+    setError(null);
     const first = connectors[0];
-    if (first) {
+    if (!first) {
+      setError("No wallet found. Install Phantom or Solflare.");
+      return;
+    }
+    try {
       await connect(first.id);
+    } catch {
+      setError("Connection failed. Please try again.");
     }
   };
 
@@ -41,15 +49,20 @@ export default function ConnectButton({ accent, shadow }: Props) {
   }
 
   return (
-    <button
-      onClick={handleConnect}
-      className="btn-press px-3 py-1.5 text-[10px] text-bg"
-      style={{
-        backgroundColor: accent,
-        boxShadow: `2px 2px 0 0 ${shadow}`,
-      }}
-    >
-      Connect Wallet
-    </button>
+    <div className="flex flex-col items-center gap-1">
+      <button
+        onClick={handleConnect}
+        className="btn-press px-3 py-1.5 text-[10px] text-bg"
+        style={{
+          backgroundColor: accent,
+          boxShadow: `2px 2px 0 0 ${shadow}`,
+        }}
+      >
+        Connect Wallet
+      </button>
+      {error && (
+        <p className="text-[9px] text-[#f85149]">{error}</p>
+      )}
+    </div>
   );
 }

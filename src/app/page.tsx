@@ -1597,7 +1597,8 @@ function HomeContent() {
               </div>
 
               {/* Auth — Wallet Connect */}
-              <div className="flex items-center justify-center gap-2">
+              <div className="flex flex-col items-center gap-1">
+                <div className="flex items-center justify-center gap-2">
                 {!walletAuth.isConnected ? (
                   <button
                     onClick={handleSignIn}
@@ -1633,6 +1634,10 @@ function HomeContent() {
                       Disconnect
                     </button>
                   </>
+                )}
+              </div>
+                {walletAuth.error && (
+                  <p className="text-[9px] text-[#f85149]">{walletAuth.error}</p>
                 )}
               </div>
             </div>
