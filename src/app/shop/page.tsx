@@ -3,7 +3,9 @@ export const dynamic = "force-dynamic";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getWalletSession } from "@/lib/wallet-session";
+import { getSupabaseAdmin } from "@/lib/supabase";
 import SignInButton from "./sign-in-button";
+import HouseColorPicker from "./house-color-picker";
 
 export const metadata: Metadata = {
   title: "Shop - Sol City",
@@ -14,6 +16,21 @@ const ACCENT = "#c8e64a";
 
 export default async function ShopLanding() {
   const walletAddress = await getWalletSession();
+
+  let houseColor: string | null = null;
+  let isResident = false;
+  if (walletAddress) {
+    const sb = getSupabaseAdmin();
+    const { data } = await sb
+      .from("wallet_residents")
+      .select("house_color")
+      .eq("wallet_address", walletAddress)
+      .single();
+    if (data) {
+      isResident = true;
+      houseColor = data.house_color ?? null;
+    }
+  }
 
   return (
     <main className="min-h-screen bg-bg font-pixel uppercase text-warm">
@@ -87,6 +104,13 @@ export default async function ShopLanding() {
             )}
           </div>
         </div>
+
+        {/* House color customization for residents */}
+        {walletAddress && isResident && (
+          <div className="mt-6">
+            <HouseColorPicker accent={ACCENT} currentColor={houseColor} />
+          </div>
+        )}
 
       </div>
     </main>

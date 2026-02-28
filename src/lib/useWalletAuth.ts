@@ -79,7 +79,7 @@ export function useWalletAuth(): WalletAuthState {
       const walletRes = await fetch(`/api/wallet/${addr}`);
       if (walletRes.ok) {
         const wData = await walletRes.json();
-        setWalletData(wData);
+        setWalletData(wData.wallet ?? wData);
       }
     } catch {
       // Data is optional

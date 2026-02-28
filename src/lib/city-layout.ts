@@ -1132,7 +1132,7 @@ export function placeResidentHouses(
       claimed: true,
       claimed_by: r.wallet_address,
       owned_items: [],
-      custom_color: r.house_color || null,
+      custom_color: r.house_color || "#6090e0",
       billboard_images: [],
       achievements: [],
       kudos_count: 0,

@@ -745,12 +745,13 @@ function HomeContent() {
 
   const reloadCity = useCallback(async (bustCache = false) => {
     const cacheBust = bustCache ? `&_t=${Date.now()}` : "";
+    const cacheBustQ = bustCache ? `?_t=${Date.now()}` : "";
     const CHUNK = 1000;
 
     // Fetch protocols and residents in parallel
     const [res, residentsRes] = await Promise.all([
       fetch(`/api/city?from=0&to=${CHUNK}${cacheBust}`),
-      fetch("/api/residents"),
+      fetch(`/api/residents${cacheBustQ}`),
     ]);
     if (!res.ok) return null;
     const data = await res.json();
@@ -825,8 +826,14 @@ function HomeContent() {
     loadCity();
   }, [reloadCity]);
 
-  // City reload on tab return removed — navigating back from shop already
-  // re-mounts the component and loads fresh data via the mount effect above.
+  // Reload city when user becomes a resident so their house appears
+  const wasResidentRef = useRef(walletAuth.isResident);
+  useEffect(() => {
+    if (walletAuth.isResident && !wasResidentRef.current) {
+      reloadCity(true);
+    }
+    wasResidentRef.current = walletAuth.isResident;
+  }, [walletAuth.isResident, reloadCity]);
 
   // ─── Intro text phase timing (14s total) ─────────────────────
   // Phase 0: "Somewhere on the blockchain..."  0.8s → fade out ~3.8s
@@ -2838,7 +2845,6 @@ function HomeContent() {
           }}
           claiming={walletAuth.connecting}
           houseColor={walletAuth.houseColor}
-          onColorChange={() => reloadCity(true)}
         />
       )}
     </main>
