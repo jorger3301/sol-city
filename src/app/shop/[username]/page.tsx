@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { createServerSupabase } from "@/lib/supabase-server";
+import { getWalletSession } from "@/lib/wallet-session";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getOwnedItems } from "@/lib/items";
 import type { ShopItem } from "@/lib/items";
@@ -58,15 +58,9 @@ export default async function ShopPage({ params, searchParams }: Props) {
 
   if (!dev) notFound();
 
-  // Check if the logged-in user owns this building
-  const supabase = await createServerSupabase();
-  const { data: { user } } = await supabase.auth.getUser();
-  const authLogin = (
-    user?.user_metadata?.user_name ??
-    user?.user_metadata?.preferred_username ??
-    ""
-  ).toLowerCase();
-  const isOwner = !!user && authLogin === dev.github_login.toLowerCase();
+  // Check if the visitor has a wallet session
+  const walletAddress = await getWalletSession();
+  const isOwner = !!walletAddress;
 
   // Not the owner or not claimed — show message
   if (!dev.claimed || !isOwner) {

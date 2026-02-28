@@ -2,9 +2,7 @@ export const dynamic = "force-dynamic";
 
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { createServerSupabase } from "@/lib/supabase-server";
-import { getSupabaseAdmin } from "@/lib/supabase";
+import { getWalletSession } from "@/lib/wallet-session";
 import SignInButton from "./sign-in-button";
 
 export const metadata: Metadata = {
@@ -15,32 +13,7 @@ export const metadata: Metadata = {
 const ACCENT = "#c8e64a";
 
 export default async function ShopLanding() {
-  // If user is logged in and has a claimed building, redirect to their shop
-  const supabase = await createServerSupabase();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (user) {
-    const githubLogin = (
-      user.user_metadata?.user_name ??
-      user.user_metadata?.preferred_username ??
-      ""
-    ).toLowerCase();
-
-    if (githubLogin) {
-      const sb = getSupabaseAdmin();
-      const { data: dev } = await sb
-        .from("developers")
-        .select("github_login, claimed")
-        .eq("github_login", githubLogin)
-        .single();
-
-      if (dev?.claimed) {
-        redirect(`/shop/${dev.github_login}`);
-      }
-    }
-  }
+  const walletAddress = await getWalletSession();
 
   return (
     <main className="min-h-screen bg-bg font-pixel uppercase text-warm">
@@ -59,8 +32,8 @@ export default async function ShopLanding() {
           </h1>
 
           <p className="mt-4 text-center text-[10px] leading-relaxed text-muted normal-case">
-            Customize your building with effects, structures and identity items.
-            Make your building stand out in the city.
+            Customize your resident profile with effects, structures and identity items.
+            Make your presence stand out in the city.
           </p>
 
           {/* How it works */}
@@ -72,33 +45,46 @@ export default async function ShopLanding() {
               <div className="flex gap-3 border-[2px] border-border bg-bg-card px-4 py-3">
                 <span style={{ color: ACCENT }}>1.</span>
                 <span>
-                  <span className="text-cream">Sign in</span> to
-                  connect your account
+                  <span className="text-cream">Connect your wallet</span> to
+                  become a resident
                 </span>
               </div>
               <div className="flex gap-3 border-[2px] border-border bg-bg-card px-4 py-3">
                 <span style={{ color: ACCENT }}>2.</span>
                 <span>
-                  Search your username and{" "}
-                  <span className="text-cream">claim</span> your building
+                  Explore your{" "}
+                  <span className="text-cream">on-chain activity</span> across
+                  Solana protocols
                 </span>
               </div>
               <div className="flex gap-3 border-[2px] border-border bg-bg-card px-4 py-3">
                 <span style={{ color: ACCENT }}>3.</span>
                 <span>
                   Browse the shop and buy items to{" "}
-                  <span className="text-cream">customize</span> your building
+                  <span className="text-cream">customize</span> your resident
+                  profile
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Sign in */}
+          {/* Connect wallet / Connected state */}
           <div className="mt-8 flex flex-col items-center gap-3">
-            <SignInButton accent={ACCENT} />
-            <p className="text-[8px] text-dim normal-case">
-              We only read your public profile info
-            </p>
+            {walletAddress ? (
+              <p className="text-xs text-cream normal-case">
+                Connected:{" "}
+                <span style={{ color: ACCENT }}>
+                  {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}
+                </span>
+              </p>
+            ) : (
+              <>
+                <SignInButton accent={ACCENT} />
+                <p className="text-[8px] text-dim normal-case">
+                  Connect your Solana wallet to get started
+                </p>
+              </>
+            )}
           </div>
         </div>
 

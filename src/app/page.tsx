@@ -3,15 +3,18 @@
 import { useState, useCallback, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import type { Session } from "@supabase/supabase-js";
-import { createBrowserSupabase } from "@/lib/supabase";
+import { useWalletAuth } from "@/lib/useWalletAuth";
+import { truncateAddress } from "@/lib/api/utils";
+import WalletHUD from "@/components/WalletHUD";
 import {
   generateProtocolCityLayout,
+  placeResidentHouses,
   type CityBuilding,
   type CityPlaza,
   type CityDecoration,
   type CityRiver,
   type CityBridge,
+  type ResidentData,
 } from "@/lib/city-layout";
 import Image from "next/image";
 import Link from "next/link";
@@ -19,7 +22,6 @@ import ActivityTicker, { type FeedEvent } from "@/components/ActivityTicker";
 import ActivityPanel from "@/components/ActivityPanel";
 import LofiRadio from "@/components/LofiRadio";
 import { ITEM_NAMES, ITEM_EMOJIS } from "@/lib/zones";
-import { useStreakCheckin } from "@/lib/useStreakCheckin";
 import { useRaidSequence } from "@/lib/useRaidSequence";
 import RaidPreviewModal from "@/components/RaidPreviewModal";
 import RaidOverlay from "@/components/RaidOverlay";
@@ -31,8 +33,6 @@ import { track } from "@vercel/analytics";
 import {
   identifyUser,
   trackSignInClicked,
-  trackBuildingClaimed,
-  trackFreeItemClaimed,
   trackBuildingClicked,
   trackKudosSent,
   trackSearchUsed,
@@ -339,15 +339,6 @@ function MiniLeaderboard({ buildings, accent }: { buildings: CityBuilding[]; acc
   );
 }
 
-// ─── Streak Pill (HUD element, inline next to @username) ────
-function getStreakTierColor(streak: number) {
-  if (streak >= 30) return "#aa44ff";
-  if (streak >= 14) return "#ff2222";
-  if (streak >= 7) return "#ff8833";
-  return "#4488ff";
-}
-
-
 function HomeContent() {
   const searchParams = useSearchParams();
   const userParam = searchParams.get("user");
@@ -386,12 +377,9 @@ function HomeContent() {
     avatar_url: string | null;
   } | null>(null);
   const [copied, setCopied] = useState(false);
-  const [session, setSession] = useState<Session | null>(null);
-  const [claiming, setClaiming] = useState(false);
+  const walletAuth = useWalletAuth();
   const [purchasedItem, setPurchasedItem] = useState<string | null>(null);
   const [selectedBuilding, setSelectedBuilding] = useState<CityBuilding | null>(null);
-  const [giftClaimed, setGiftClaimed] = useState(false);
-  const [claimingGift, setClaimingGift] = useState(false);
   const [feedEvents, setFeedEvents] = useState<FeedEvent[]>([]);
   const [feedPanelOpen, setFeedPanelOpen] = useState(false);
   const [kudosSending, setKudosSending] = useState(false);
@@ -496,41 +484,8 @@ function HomeContent() {
 
 
 
-  // Auth state listener
-  useEffect(() => {
-    const supabase = createBrowserSupabase();
-    supabase.auth.getSession().then(({ data: { session: s } }: { data: { session: Session | null } }) => {
-      setSession(s);
-      if (s) {
-        const login = (s.user?.user_metadata?.user_name ?? s.user?.user_metadata?.preferred_username ?? "").toLowerCase();
-        if (login) identifyUser({ github_login: login, email: s.user?.email ?? undefined });
-      }
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: string, s: Session | null) => {
-      setSession(s);
-      if (s && event !== "TOKEN_REFRESHED") {
-        const login = (s.user?.user_metadata?.user_name ?? s.user?.user_metadata?.preferred_username ?? "").toLowerCase();
-        if (login) identifyUser({ github_login: login, email: s.user?.email ?? undefined });
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const authLogin = (
-    session?.user?.user_metadata?.user_name ??
-    session?.user?.user_metadata?.preferred_username ??
-    ""
-  ).toLowerCase();
-
-  // Fetch fly vehicle from raid loadout (on login)
-  const sessionUserId = session?.user?.id;
-  useEffect(() => {
-    if (!sessionUserId) return;
-    fetch("/api/raid/loadout")
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => { if (data?.vehicle) setFlyVehicle(data.vehicle); })
-      .catch(() => {});
-  }, [sessionUserId]);
+  // Wallet address is the user identity (replaces GitHub authLogin)
+  const authLogin = walletAuth.address ?? "";
 
   // Save ?ref= to localStorage (7-day expiry)
   useEffect(() => {
@@ -543,25 +498,11 @@ function HomeContent() {
     }
   }, [searchParams]);
 
-  // Forward ref from localStorage to auth callback URL
-  const handleSignInWithRef = useCallback(async () => {
+  // Connect wallet handler (replaces GitHub OAuth)
+  const handleConnectWallet = useCallback(async () => {
     trackSignInClicked("city");
-    const supabase = createBrowserSupabase();
-    let redirectTo = `${window.location.origin}/auth/callback`;
-    try {
-      const raw = localStorage.getItem("gc_ref");
-      if (raw) {
-        const { login, expires } = JSON.parse(raw);
-        if (Date.now() < expires && login) {
-          redirectTo += `?ref=${encodeURIComponent(login)}`;
-        }
-      }
-    } catch { /* ignore */ }
-    await supabase.auth.signInWithOAuth({
-      provider: "github",
-      options: { redirectTo },
-    });
-  }, []);
+    await walletAuth.connect();
+  }, [walletAuth]);
 
   // Fetch activity feed on mount + poll every 60s
   useEffect(() => {
@@ -581,7 +522,7 @@ function HomeContent() {
 
   // Visit tracking: fire visit POST after 3s of profile card open
   useEffect(() => {
-    if (selectedBuilding && session && selectedBuilding.login.toLowerCase() !== authLogin) {
+    if (selectedBuilding && walletAuth.isConnected && selectedBuilding.login.toLowerCase() !== authLogin) {
       visitTimerRef.current = setTimeout(async () => {
         try {
           const building = buildings.find(b => b.login === selectedBuilding.login);
@@ -597,11 +538,11 @@ function HomeContent() {
     return () => {
       if (visitTimerRef.current) clearTimeout(visitTimerRef.current);
     };
-  }, [selectedBuilding, session, authLogin, buildings]);
+  }, [selectedBuilding, walletAuth.isConnected, authLogin, buildings]);
 
   // Kudos handler
   const handleGiveKudos = useCallback(async () => {
-    if (!selectedBuilding || kudosSending || kudosSent || !session) return;
+    if (!selectedBuilding || kudosSending || kudosSent || !walletAuth.isConnected) return;
     if (selectedBuilding.login.toLowerCase() === authLogin) return;
     setKudosSending(true);
     setKudosError(null);
@@ -631,11 +572,11 @@ function HomeContent() {
       }
     } catch { /* ignore */ }
     finally { setKudosSending(false); }
-  }, [selectedBuilding, kudosSending, kudosSent, session, authLogin]);
+  }, [selectedBuilding, kudosSending, kudosSent, walletAuth.isConnected, authLogin]);
 
   // Gift: open modal with available items
   const handleOpenGift = useCallback(async () => {
-    if (!selectedBuilding || !session) return;
+    if (!selectedBuilding || !walletAuth.isConnected) return;
     setGiftModalOpen(true);
     setGiftItems(null);
     try {
@@ -649,7 +590,7 @@ function HomeContent() {
         .map((i) => ({ ...i, owned: receiverOwned.has(i.id) }));
       setGiftItems(available);
     } catch { /* ignore */ }
-  }, [selectedBuilding, session]);
+  }, [selectedBuilding, walletAuth.isConnected]);
 
   // Gift: checkout for receiver
   const handleGiftCheckout = useCallback(async (itemId: string) => {
@@ -685,7 +626,7 @@ function HomeContent() {
   // Outside fly mode: compare → share modal → profile card → focus → explore mode
   useEffect(() => {
     if (flyMode && !selectedBuilding) return;
-    if (!flyMode && !exploreMode && !focusedBuilding && !shareData && !selectedBuilding && !giftClaimed && !giftModalOpen && !comparePair && !compareBuilding && !founderMessageOpen && !pillModalOpen && !rabbitCinematic && raidState.phase === "idle") return;
+    if (!flyMode && !exploreMode && !focusedBuilding && !shareData && !selectedBuilding && !giftModalOpen && !comparePair && !compareBuilding && !founderMessageOpen && !pillModalOpen && !rabbitCinematic && raidState.phase === "idle") return;
     const onKey = (e: KeyboardEvent) => {
       if (e.code === "Escape") {
         // Founder modals take highest priority
@@ -723,7 +664,6 @@ function HomeContent() {
             setFocusedBuilding(compareBuilding.login);
             setCompareBuilding(null);
           } else if (giftModalOpen) { setGiftModalOpen(false); setGiftItems(null); }
-            else if (giftClaimed) setGiftClaimed(false);
           else if (shareData) { setShareData(null); setSelectedBuilding(null); setFocusedBuilding(null); }
           else if (selectedBuilding) { setSelectedBuilding(null); setFocusedBuilding(null); }
           else if (focusedBuilding) setFocusedBuilding(null);
@@ -733,7 +673,7 @@ function HomeContent() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [flyMode, exploreMode, focusedBuilding, shareData, selectedBuilding, giftClaimed, giftModalOpen, comparePair, compareBuilding, founderMessageOpen, pillModalOpen, rabbitCinematic, endRabbitCinematic, raidState.phase, raidActions]);
+  }, [flyMode, exploreMode, focusedBuilding, shareData, selectedBuilding, giftModalOpen, comparePair, compareBuilding, founderMessageOpen, pillModalOpen, rabbitCinematic, endRabbitCinematic, raidState.phase, raidActions]);
 
   // Rabbit cinematic text phase timing (8s total flyover)
   useEffect(() => {
@@ -751,19 +691,18 @@ function HomeContent() {
 
   // Fetch rabbit progress on login
   useEffect(() => {
-    if (!session) return;
+    if (!walletAuth.isConnected) return;
     fetch("/api/rabbit?check=true")
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
         if (!data) return;
         setRabbitProgress(data.progress ?? 0);
-        // If mid-quest, show rabbit automatically
         if (data.progress > 0 && data.progress < 5) {
           setRabbitSighting(data.progress + 1);
         }
       })
       .catch(() => {});
-  }, [session]);
+  }, [walletAuth.isConnected]);
 
   // Auto-dismiss rabbit hint flash
   useEffect(() => {
@@ -807,23 +746,32 @@ function HomeContent() {
   const reloadCity = useCallback(async (bustCache = false) => {
     const cacheBust = bustCache ? `&_t=${Date.now()}` : "";
     const CHUNK = 1000;
-    const res = await fetch(`/api/city?from=0&to=${CHUNK}${cacheBust}`);
+
+    // Fetch protocols and residents in parallel
+    const [res, residentsRes] = await Promise.all([
+      fetch(`/api/city?from=0&to=${CHUNK}${cacheBust}`),
+      fetch("/api/residents"),
+    ]);
     if (!res.ok) return null;
     const data = await res.json();
     setStats(data.stats);
     const protocols = data.protocols ?? data.developers ?? [];
     if (protocols.length === 0) return null;
 
-    // Render downtown immediately
+    const residentsData = residentsRes.ok ? await residentsRes.json() : { residents: [] };
+    const residents: ResidentData[] = residentsData.residents ?? [];
+
+    // Render downtown immediately + resident houses
     const layout = generateProtocolCityLayout(protocols);
-    setBuildings(layout.buildings);
+    const houses = placeResidentHouses(layout.buildings, residents);
+    setBuildings([...layout.buildings, ...houses]);
     setPlazas(layout.plazas);
     setDecorations(layout.decorations);
     setRiver(layout.river);
     setBridges(layout.bridges);
 
     const total = data.stats?.total_developers ?? 0;
-    if (total <= CHUNK) return layout.buildings;
+    if (total <= CHUNK) return [...layout.buildings, ...houses];
 
     // Fetch remaining chunks in parallel
     const promises: Promise<Record<string, unknown> | null>[] = [];
@@ -842,14 +790,16 @@ function HomeContent() {
       }
     }
 
-    // Regenerate full layout with all protocols
+    // Regenerate full layout with all protocols + resident houses
     const fullLayout = generateProtocolCityLayout(allProtocols);
-    setBuildings(fullLayout.buildings);
+    const allHouses = placeResidentHouses(fullLayout.buildings, residents);
+    const allBuildings = [...fullLayout.buildings, ...allHouses];
+    setBuildings(allBuildings);
     setPlazas(fullLayout.plazas);
     setDecorations(fullLayout.decorations);
     setRiver(fullLayout.river);
     setBridges(fullLayout.bridges);
-    return fullLayout.buildings;
+    return allBuildings;
   }, []);
 
   // Load city from Supabase on mount
@@ -1135,60 +1085,11 @@ function HomeContent() {
     searchUser();
   };
 
-  const handleSignIn = handleSignInWithRef;
+  const handleSignIn = handleConnectWallet;
+  const handleSignOut = walletAuth.disconnect;
 
-  const handleSignOut = async () => {
-    await fetch("/api/auth/signout", { method: "POST" });
-    setSession(null);
-  };
-
-  const handleClaim = async () => {
-    setClaiming(true);
-    try {
-      const res = await fetch("/api/claim", { method: "POST" });
-      if (res.ok) {
-        trackBuildingClaimed(authLogin);
-        await reloadCity();
-      }
-    } finally {
-      setClaiming(false);
-    }
-  };
-
-  const handleClaimFreeGift = async () => {
-    setClaimingGift(true);
-    try {
-      const res = await fetch("/api/claim-free-item", { method: "POST" });
-      if (res.ok) {
-        trackFreeItemClaimed();
-        await reloadCity();
-        setGiftClaimed(true);
-      }
-    } finally {
-      setClaimingGift(false);
-    }
-  };
-
-  // Determine if the logged-in user can claim their building
-  const myBuilding = authLogin
-    ? buildings.find((b) => b.login.toLowerCase() === authLogin)
-    : null;
-  const canClaim = !!session && !!myBuilding && !myBuilding.claimed;
-
-  // Shop link: logged in + claimed → own shop, otherwise → /shop landing
-  const shopHref =
-    session && myBuilding?.claimed
-      ? `/shop/${myBuilding.login}`
-      : "/shop";
-
-  // Show free gift CTA when user claimed but hasn't picked up the free item
-  const hasFreeGift =
-    !!session &&
-    !!myBuilding?.claimed &&
-    !myBuilding.owned_items.includes("flag");
-
-  // Streak auto check-in (1x per browser session)
-  const { streakData } = useStreakCheckin(session, !!myBuilding?.claimed);
+  // Shop link
+  const shopHref = "/shop";
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg font-pixel uppercase text-warm">
@@ -1260,8 +1161,8 @@ function HomeContent() {
         rabbitCinematicTarget={rabbitSighting ?? undefined}
         onBuildingClick={(b) => {
           trackBuildingClicked(b.login);
-          // A1: Sign-in prompt after 3 building clicks without session
-          if (!session && !signInPromptShownRef.current) {
+          // A1: Wallet connect prompt after 3 building clicks without wallet
+          if (!walletAuth.isConnected && !signInPromptShownRef.current) {
             buildingClickCountRef.current += 1;
             if (buildingClickCountRef.current >= 3) {
               signInPromptShownRef.current = true;
@@ -1651,22 +1552,6 @@ function HomeContent() {
           {/* Center - Explore buttons + Shop + Auth */}
           {buildings.length > 0 && (
             <div className="pointer-events-auto flex flex-col items-center gap-3">
-              {/* Free Gift CTA — above primary actions */}
-              {hasFreeGift && (
-                <button
-                  onClick={handleClaimFreeGift}
-                  disabled={claimingGift}
-                  className="gift-cta btn-press px-7 py-3 text-xs sm:py-3.5 sm:text-sm text-bg disabled:opacity-60"
-                  style={{
-                    backgroundColor: theme.accent,
-                    ["--gift-glow-color" as string]: theme.accent + "66",
-                    ["--gift-shadow-color" as string]: theme.shadow,
-                  }}
-                >
-                  {claimingGift ? "Opening..." : "\uD83C\uDF81 Open Free Gift!"}
-                </button>
-              )}
-
               {/* Primary actions */}
               <div className="flex items-center gap-3 sm:gap-4">
                 <button
@@ -1724,49 +1609,41 @@ function HomeContent() {
                 </Link>
               </div>
 
-              {/* Auth */}
+              {/* Auth — Wallet Connect */}
               <div className="flex items-center justify-center gap-2">
-                {!session ? (
+                {!walletAuth.isConnected ? (
                   <button
                     onClick={handleSignIn}
-                    className="btn-press flex items-center gap-1.5 border-[3px] border-border bg-bg/80 px-3 py-1.5 text-[10px] backdrop-blur-sm transition-colors hover:border-border-light"
+                    disabled={walletAuth.connecting}
+                    className="btn-press flex items-center gap-1.5 border-[3px] border-border bg-bg/80 px-3 py-1.5 text-[10px] backdrop-blur-sm transition-colors hover:border-border-light disabled:opacity-50"
                   >
-                    <span style={{ color: theme.accent }}>G</span>
-                    <span className="text-cream">Sign in</span>
+                    <span
+                      className="h-2 w-2 rounded-full"
+                      style={{ backgroundColor: theme.accent }}
+                    />
+                    <span className="text-cream">
+                      {walletAuth.connecting ? "Connecting..." : "Connect Wallet"}
+                    </span>
                   </button>
                 ) : (
                   <>
-                    {canClaim && (
-                      <button
-                        onClick={handleClaim}
-                        disabled={claiming}
-                        className="btn-press px-3 py-1.5 text-[10px] text-bg disabled:opacity-40"
-                        style={{
-                          backgroundColor: theme.accent,
-                          boxShadow: `2px 2px 0 0 ${theme.shadow}`,
-                        }}
-                      >
-                        {claiming ? "..." : "Claim"}
-                      </button>
-                    )}
-                    <Link
-                      href={`/${authLogin}`}
-                      className="flex items-center gap-1.5 border-[3px] border-border bg-bg/80 px-3 py-1.5 text-[10px] text-cream normal-case backdrop-blur-sm transition-colors hover:border-border-light"
-                      style={streakData && streakData.streak > 0 && streakData.checked_in ? { animation: "streak-pulse 1.5s ease-in-out 2" } : undefined}
-                    >
-                      @{authLogin}
-                      {streakData && streakData.streak > 0 && (
-                        <span className="flex items-center gap-0.5" style={{ color: getStreakTierColor(streakData.streak) }}>
-                          <span className="text-[9px] leading-none">🔥</span>
-                          <span className="font-bold">{streakData.streak}</span>
+                    <span className="flex items-center gap-1.5 border-[3px] border-border bg-bg/80 px-3 py-1.5 text-[10px] text-cream normal-case backdrop-blur-sm">
+                      <span
+                        className="h-2 w-2 rounded-full"
+                        style={{ backgroundColor: "#14F195" }}
+                      />
+                      {truncateAddress(walletAuth.address!)}
+                      {walletAuth.isResident && (
+                        <span className="text-[8px]" style={{ color: "#14F195" }}>
+                          Resident
                         </span>
                       )}
-                    </Link>
+                    </span>
                     <button
                       onClick={handleSignOut}
                       className="border-[2px] border-border bg-bg/80 px-2 py-1 text-[9px] text-muted backdrop-blur-sm transition-colors hover:text-cream hover:border-border-light"
                     >
-                      Sign Out
+                      Disconnect
                     </button>
                   </>
                 )}
@@ -1815,12 +1692,12 @@ function HomeContent() {
         </div>
       )}
 
-      {/* ─── A1: Sign-in prompt after building exploration ─── */}
-      {signInPromptVisible && !session && (
+      {/* ─── A1: Wallet connect prompt after building exploration ─── */}
+      {signInPromptVisible && !walletAuth.isConnected && (
         <div className="fixed top-20 left-1/2 z-50 -translate-x-1/2 w-[calc(100%-1.5rem)] max-w-xs animate-[slide-up_0.2s_ease-out]">
           <div className="border-[3px] border-border bg-bg-raised/95 px-4 py-3 backdrop-blur-sm">
             <p className="text-[10px] text-cream normal-case mb-2.5 leading-relaxed">
-              Sign in to give Kudos, raid buildings, and claim yours
+              Connect your wallet to explore your on-chain activity
             </p>
             <button
               onClick={() => {
@@ -1834,7 +1711,7 @@ function HomeContent() {
                 boxShadow: `2px 2px 0 0 ${theme.shadow}`,
               }}
             >
-              Sign in
+              Connect Wallet
             </button>
             <button
               onClick={() => setSignInPromptVisible(false)}
@@ -1875,7 +1752,7 @@ function HomeContent() {
               Neon Outline, Particle Aura, Spotlight, and more
             </p>
             <Link
-              href={myBuilding?.claimed ? `/shop/${ghostPreviewLogin}` : `/${ghostPreviewLogin}`}
+              href={`/${ghostPreviewLogin}`}
               onClick={() => setGhostPreviewLogin(null)}
               className="btn-press block w-full py-2 text-center text-[10px] text-bg"
               style={{
@@ -1883,7 +1760,7 @@ function HomeContent() {
                 boxShadow: `2px 2px 0 0 ${theme.shadow}`,
               }}
             >
-              {myBuilding?.claimed ? "Customize" : "Claim & Customize"} &rarr;
+              View Protocol &rarr;
             </Link>
             <button
               onClick={() => setGhostPreviewLogin(null)}
@@ -1895,33 +1772,7 @@ function HomeContent() {
         </div>
       )}
 
-      {/* ─── A12: Streak reward toast ─── */}
-      {streakData?.streak_reward && streakData.checked_in && (
-        <div className="fixed top-20 left-1/2 z-50 -translate-x-1/2 w-[calc(100%-1.5rem)] max-w-xs animate-[slide-up_0.2s_ease-out]">
-          <div
-            className="border-[3px] bg-bg-raised/95 px-4 py-3 backdrop-blur-sm text-center"
-            style={{ borderColor: theme.accent }}
-          >
-            <p className="text-lg mb-1">🎁</p>
-            <p className="text-[10px] text-cream normal-case mb-1 font-bold">
-              {streakData.streak_reward.milestone}-day streak reward!
-            </p>
-            <p className="text-[9px] normal-case mb-2" style={{ color: theme.accent }}>
-              You unlocked {streakData.streak_reward.item_name}
-            </p>
-            <Link
-              href={`/shop/${authLogin}`}
-              className="btn-press block w-full py-1.5 text-center text-[9px] text-bg"
-              style={{
-                backgroundColor: theme.accent,
-                boxShadow: `2px 2px 0 0 ${theme.shadow}`,
-              }}
-            >
-              Equip now &rarr;
-            </Link>
-          </div>
-        </div>
-      )}
+      {/* Streak reward removed — developer feature */}
 
       {/* ─── Building Profile Card ─── */}
       {/* Desktop: right edge, vertically centered. Mobile: bottom sheet, centered. */}
@@ -2081,133 +1932,28 @@ function HomeContent() {
                         </span>
                       )}
                     </div>
-                    {session && (
-                      <Link
-                        href={`/shop/${authLogin}`}
-                        className="btn-press mt-2 block w-full py-1.5 text-center text-[9px] text-bg"
-                        style={{
-                          backgroundColor: theme.accent,
-                          boxShadow: `2px 2px 0 0 ${theme.shadow}`,
-                        }}
-                      >
-                        Get these for your building
-                      </Link>
-                    )}
+                    {/* Shop link removed — buildings are protocols, not user-owned */}
                   </div>
                 );
               })()}
 
-              {/* Kudos: give kudos (other's building, logged in) */}
-              {session && selectedBuilding.login.toLowerCase() !== authLogin && (
-                <div className="relative mx-4 mb-3">
-                  {/* Floating emoji animation on success */}
-                  {kudosSent && (
-                    <div className="pointer-events-none absolute inset-0 overflow-visible">
-                      {Array.from({ length: 6 }).map((_, i) => (
-                        <span
-                          key={i}
-                          className="kudos-float absolute text-sm"
-                          style={{
-                            left: `${15 + i * 14}%`,
-                            animationDelay: `${i * 0.08}s`,
-                          }}
-                        >
-                          {["👏", "⭐", "💛", "✨", "👏", "⭐"][i]}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  <button
-                    onClick={handleGiveKudos}
-                    disabled={kudosSending || kudosSent || !!kudosError}
-                    className={[
-                      "btn-press w-full py-2 text-[10px] text-bg transition-all duration-300",
-                      kudosSent ? "scale-[1.02]" : "",
-                    ].join(" ")}
-                    style={{
-                      backgroundColor: kudosError ? "#ff4444" : kudosSent ? "#39d353" : theme.accent,
-                      boxShadow: kudosError
-                        ? "0 0 12px rgba(255,68,68,0.4)"
-                        : kudosSent
-                        ? "0 0 12px rgba(57,211,83,0.4)"
-                        : `2px 2px 0 0 ${theme.shadow}`,
-                    }}
+              {/* Wallet interaction indicator */}
+              {walletAuth.isConnected && (() => {
+                const interaction = walletAuth.interactedProtocols.find(
+                  (p) => p.protocol_slug === selectedBuilding.login
+                );
+                if (!interaction) return null;
+                return (
+                  <div
+                    className="mx-4 mb-3 border-[2px] p-2.5 text-center"
+                    style={{ borderColor: "#14F19544", backgroundColor: "#14F19508" }}
                   >
-                    {kudosSending ? (
-                      <span className="animate-pulse">Sending...</span>
-                    ) : kudosError ? (
-                      <span>{kudosError}</span>
-                    ) : kudosSent ? (
-                      <span>+1 Kudos!</span>
-                    ) : (
-                      "Give Kudos"
-                    )}
-                  </button>
-                  <button
-                    onClick={handleOpenGift}
-                    className="btn-press mt-1.5 w-full border-[2px] border-border py-1.5 text-[9px] text-cream transition-colors hover:border-border-light"
-                  >
-                    Send Gift
-                  </button>
-                  {/* Raid button */}
-                  {raidState.phase === "idle" && raidState.error && (
-                    <p className="mt-1.5 text-center text-[10px] text-red-400">{raidState.error}</p>
-                  )}
-                  <button
-                    onClick={() => {
-                      if (authLogin && selectedBuilding) {
-                        raidActions.startPreview(selectedBuilding.login, buildings, authLogin);
-                      }
-                    }}
-                    disabled={raidState.loading}
-                    className="btn-press mt-1.5 w-full border-[3px] border-red-500/60 px-4 py-2 text-xs text-red-400 transition-colors hover:bg-red-500/10"
-                  >
-                    {raidState.loading ? "Loading..." : "RAID"}
-                  </button>
-                </div>
-              )}
-
-              {/* A3: Disabled action buttons for non-logged users */}
-              {!session && (
-                <div className="mx-4 mb-3 space-y-1.5">
-                  <button
-                    onClick={() => { trackDisabledButtonClicked("kudos"); handleSignIn(); }}
-                    className="btn-press w-full py-2 text-[10px] border-[2px] border-dashed border-border/50 text-muted/60 transition-colors hover:border-border hover:text-muted"
-                  >
-                    &#x1F512; Give Kudos
-                  </button>
-                  <button
-                    onClick={() => { trackDisabledButtonClicked("gift"); handleSignIn(); }}
-                    className="btn-press w-full py-1.5 text-[9px] border-[2px] border-dashed border-border/50 text-muted/60 transition-colors hover:border-border hover:text-muted"
-                  >
-                    &#x1F512; Send Gift
-                  </button>
-                  <button
-                    onClick={() => { trackDisabledButtonClicked("raid"); handleSignIn(); }}
-                    className="btn-press w-full py-2 text-[10px] border-[2px] border-dashed border-red-500/30 text-red-400/40 transition-colors hover:border-red-500/60 hover:text-red-400/70"
-                  >
-                    &#x1F512; RAID
-                  </button>
-                </div>
-              )}
-
-              {/* Own building: copy invite link */}
-              {selectedBuilding.login.toLowerCase() === authLogin && (
-                <div className="mx-4 mb-3">
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(
-                        `${window.location.origin}/?ref=${authLogin}`
-                      );
-                      setCopied(true);
-                      setTimeout(() => setCopied(false), 2000);
-                    }}
-                    className="btn-press w-full border-[2px] border-border py-1.5 text-center text-[9px] text-cream transition-colors hover:border-border-light"
-                  >
-                    {copied ? "Copied!" : "\uD83D\uDCCB Copy Invite Link"}
-                  </button>
-                </div>
-              )}
+                    <p className="text-[10px] normal-case" style={{ color: "#14F195" }}>
+                      You&apos;ve interacted with this protocol ({interaction.tx_count} txs)
+                    </p>
+                  </div>
+                );
+              })()}
 
               {/* Compare button */}
               {!flyMode && (
@@ -2874,106 +2620,7 @@ function HomeContent() {
         }}
       />
 
-      {/* ─── Free Gift Celebration Modal ─── */}
-      {giftClaimed && !flyMode && !exploreMode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-bg/70 backdrop-blur-sm"
-            onClick={() => setGiftClaimed(false)}
-          />
-
-          {/* Modal */}
-          <div
-            className="relative mx-3 border-[3px] border-border bg-bg-raised p-5 text-center sm:mx-0 sm:p-7 animate-[gift-bounce_0.5s_ease-out]"
-            style={{ borderColor: theme.accent + "60" }}
-          >
-            {/* Close */}
-            <button
-              onClick={() => setGiftClaimed(false)}
-              className="absolute top-2 right-3 text-[10px] text-muted transition-colors hover:text-cream"
-            >
-              ESC
-            </button>
-
-            <div className="text-3xl sm:text-4xl mb-3">{"\uD83C\uDF89"}</div>
-
-            <p className="text-sm text-cream sm:text-base">Gift Unlocked!</p>
-
-            <div
-              className="mt-4 inline-flex items-center gap-3 border-[2px] border-border bg-bg-card px-5 py-3"
-            >
-              <span className="text-2xl">{"\uD83C\uDFC1"}</span>
-              <div className="text-left">
-                <p className="text-xs text-cream">Flag</p>
-                <p className="text-[9px] text-muted normal-case">
-                  A flag on top of your building
-                </p>
-              </div>
-            </div>
-
-            {/* Upsell strip */}
-            <div className="mt-5 w-full max-w-[280px]">
-              <p className="mb-2 text-[9px] tracking-widest text-muted uppercase">
-                Upgrade your building
-              </p>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { emoji: "\uD83C\uDF3F", name: "Garden", price: "$0.75" },
-                  { emoji: "\u2728", name: "Neon", price: "$1.00" },
-                  { emoji: "\uD83D\uDD25", name: "Fire", price: "$1.00" },
-                ].map((item) => (
-                  <Link
-                    key={item.name}
-                    href={shopHref}
-                    onClick={() => setGiftClaimed(false)}
-                    className="flex flex-col items-center gap-1 border-[2px] border-border bg-bg-card px-2 py-2.5 transition-colors hover:border-border-light"
-                  >
-                    <span className="text-xl">{item.emoji}</span>
-                    <span className="text-[8px] text-cream leading-tight">
-                      {item.name}
-                    </span>
-                    <span
-                      className="text-[9px] font-bold"
-                      style={{ color: theme.accent }}
-                    >
-                      {item.price}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-center sm:gap-3">
-              <button
-                onClick={() => {
-                  setGiftClaimed(false);
-                  if (myBuilding) {
-                    setFocusedBuilding(myBuilding.login);
-                    setSelectedBuilding(myBuilding);
-                    setExploreMode(true);
-                  }
-                }}
-                className="btn-press px-5 py-2.5 text-[10px] text-bg"
-                style={{
-                  backgroundColor: theme.accent,
-                  boxShadow: `3px 3px 0 0 ${theme.shadow}`,
-                }}
-              >
-                View in City
-              </button>
-              <Link
-                href={shopHref}
-                onClick={() => setGiftClaimed(false)}
-                className="btn-press border-[3px] border-border px-5 py-2 text-[10px] text-cream transition-colors hover:border-border-light"
-              >
-                Visit Shop {"→"}
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Gift celebration modal removed — developer feature */}
 
       {/* Mark streak achievements as seen on check-in */}
 
@@ -3001,8 +2648,8 @@ function HomeContent() {
       {/* Founder's Landmark modals */}
       {pillModalOpen && (
         <PillModal
-          isLoggedIn={!!session}
-          hasClaimed={!!myBuilding?.claimed}
+          isLoggedIn={walletAuth.isConnected}
+          hasClaimed={false}
           rabbitCompleted={rabbitProgress >= 5}
           onRedPill={() => {
             setPillModalOpen(false);
@@ -3011,7 +2658,7 @@ function HomeContent() {
           onBluePill={() => {
             setPillModalOpen(false);
             if (rabbitProgress >= 5) return;
-            if (!myBuilding?.claimed) return;
+            if (!walletAuth.isConnected) return;
             // Spawn rabbit BEFORE cinematic so camera flies past it
             setRabbitSighting(rabbitProgress + 1);
             setRabbitCinematic(true);
@@ -3109,6 +2756,34 @@ function HomeContent() {
       {/* Rabbit completion cinematic */}
       {rabbitCompletion && (
         <RabbitCompletion onComplete={() => setRabbitCompletion(false)} />
+      )}
+
+      {/* Wallet HUD — shows portfolio & protocol interactions when connected */}
+      {walletAuth.isConnected && walletAuth.address && (
+        <WalletHUD
+          walletAddress={walletAuth.address}
+          walletData={walletAuth.walletData}
+          interactedProtocols={walletAuth.interactedProtocols}
+          isResident={walletAuth.isResident}
+          accentColor={theme.accent}
+          onClaimHouse={async () => {
+            if (!walletAuth.address) return;
+            await fetch("/api/resident/claim", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ address: walletAuth.address }),
+            });
+          }}
+          onProtocolClick={(slug) => {
+            const building = buildings.find((b) => b.login === slug);
+            if (building) {
+              setFocusedBuilding(slug);
+              setSelectedBuilding(building);
+              setExploreMode(true);
+            }
+          }}
+          claiming={false}
+        />
       )}
     </main>
   );

@@ -94,6 +94,9 @@ export async function middleware(request: NextRequest) {
   // Only call Supabase when the user is actually logged in (has auth
   // cookies).  For anonymous visitors (~80%+ of viral traffic) we skip
   // the external HTTP call entirely, saving latency and Supabase quota.
+  // Only call Supabase when the user has Supabase auth cookies.
+  // Wallet sessions use a separate `sol_wallet` cookie that doesn't
+  // need Supabase refresh — it passes through automatically.
   const hasSession = request.cookies
     .getAll()
     .some((c) => c.name.startsWith("sb-"));
