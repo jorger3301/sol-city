@@ -28,7 +28,7 @@ export default function ConnectButton({ accent, shadow }: Props) {
     try {
       await connect(first.id);
     } catch {
-      setError("Connection failed. Please try again.");
+      setShowPicker(true);
     }
   };
 

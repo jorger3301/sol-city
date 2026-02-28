@@ -106,8 +106,8 @@ export function useWalletAuth(): WalletAuthState {
     try {
       await walletConnect(first.id);
     } catch {
-      setError("Wallet connection failed. Please try again.");
       setConnecting(false);
+      setShowWalletPicker(true);
     }
   }, [connectors, walletConnect]);
 
