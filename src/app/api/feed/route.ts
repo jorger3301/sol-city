@@ -15,7 +15,8 @@ export async function GET(request: Request) {
   // Piggyback cleanup: delete events older than 30 days (~1% chance per request)
   if (Math.random() < 0.01) {
     const cutoff = new Date(Date.now() - 30 * 86400000).toISOString();
-    sb.from("activity_feed").delete().lt("created_at", cutoff).then(() => {});
+    const { error } = await sb.from("activity_feed").delete().lt("created_at", cutoff);
+    if (error) console.warn("Feed cleanup failed:", error.message);
   }
 
   let query = sb

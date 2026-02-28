@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { fetchMintPrices } from "@/lib/api/jupiter";
+import { fetchWithTimeout } from "@/lib/api/utils";
 
 // ═══════════════════════════════════════════════════
 // CRON: Sync protocol data (TVL, volumes, fees, prices)
@@ -170,8 +171,9 @@ async function fetchVolumesAndFees(): Promise<{
   // Volume: DEX + derivatives
   for (const endpoint of ["dexs", "derivatives"]) {
     try {
-      const res = await fetch(
-        `${DEFILLAMA_BASE}/overview/${endpoint}/solana`
+      const res = await fetchWithTimeout(
+        `${DEFILLAMA_BASE}/overview/${endpoint}/solana`,
+        { timeout: 10_000 }
       );
       if (!res.ok) continue;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -193,7 +195,7 @@ async function fetchVolumesAndFees(): Promise<{
 
   // Fees: covers lending, staking, yield, launchpads — much broader than volume
   try {
-    const res = await fetch(`${DEFILLAMA_BASE}/overview/fees/solana`);
+    const res = await fetchWithTimeout(`${DEFILLAMA_BASE}/overview/fees/solana`, { timeout: 10_000 });
     if (res.ok) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const data: any = await res.json();
@@ -215,32 +217,40 @@ async function fetchVolumesAndFees(): Promise<{
   return { volumeMap, feesMap };
 }
 
-// Fetch Vybe Network token volumes for known mints
+// Fetch Vybe Network token volumes for known mints (batched to avoid rate limits)
 async function fetchVybeVolumes(): Promise<Record<string, number>> {
   const vybeKey = process.env.VYBE_API_KEY;
   if (!vybeKey) return {};
 
   const mints = Object.values(PARENT_MINTS);
-
-  // Pro plan: 500 RPM — fetch all mints in parallel
-  const results = await Promise.allSettled(
-    mints.map(async (mint) => {
-      const res = await fetch(
-        `https://api.vybenetwork.xyz/v4/tokens/${mint}`,
-        { headers: { "X-API-Key": vybeKey } }
-      );
-      if (!res.ok) throw new Error(`${res.status}`);
-      return { mint, data: await res.json() };
-    })
-  );
-
   const vybeByMint: Record<string, number> = {};
-  for (const r of results) {
-    if (r.status === "fulfilled") {
-      const vol = r.value.data.usdValueVolume24h;
-      if (vol != null && vol > 0) {
-        vybeByMint[r.value.mint] = vol;
+  const BATCH_SIZE = 10;
+
+  for (let i = 0; i < mints.length; i += BATCH_SIZE) {
+    const batch = mints.slice(i, i + BATCH_SIZE);
+    const results = await Promise.allSettled(
+      batch.map(async (mint) => {
+        const res = await fetchWithTimeout(
+          `https://api.vybenetwork.xyz/v4/tokens/${mint}`,
+          { headers: { "X-API-Key": vybeKey }, timeout: 10_000 }
+        );
+        if (!res.ok) throw new Error(`${res.status}`);
+        return { mint, data: await res.json() };
+      })
+    );
+
+    for (const r of results) {
+      if (r.status === "fulfilled") {
+        const vol = r.value.data.usdValueVolume24h;
+        if (vol != null && vol > 0) {
+          vybeByMint[r.value.mint] = vol;
+        }
       }
+    }
+
+    // Small delay between batches to avoid rate limit spikes
+    if (i + BATCH_SIZE < mints.length) {
+      await new Promise((resolve) => setTimeout(resolve, 200));
     }
   }
 
@@ -258,7 +268,7 @@ export async function GET(request: Request) {
     // Fetch all external data in parallel
     const [protocolsRes, { volumeMap, feesMap }, priceByMint, vybeByMint] =
       await Promise.all([
-        fetch(`${DEFILLAMA_BASE}/protocols`).then((r) => {
+        fetchWithTimeout(`${DEFILLAMA_BASE}/protocols`, { timeout: 10_000 }).then((r) => {
           if (!r.ok) throw new Error(`DeFiLlama ${r.status}`);
           return r.json();
         }),

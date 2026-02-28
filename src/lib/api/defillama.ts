@@ -5,13 +5,14 @@
 
 import type { Protocol } from './types';
 import { mapCategory } from './registry';
+import { fetchWithTimeout } from './utils';
 
 const DEFILLAMA_BASE = process.env.NEXT_PUBLIC_DEFILLAMA_BASE || 'https://api.llama.fi';
 
 // ── Fetch all Solana protocols with $10K+ TVL ──
 export async function fetchProtocols(): Promise<Protocol[]> {
   try {
-    const res = await fetch(`${DEFILLAMA_BASE}/protocols`);
+    const res = await fetchWithTimeout(`${DEFILLAMA_BASE}/protocols`);
     if (!res.ok) throw new Error(`DeFiLlama ${res.status}`);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data: any[] = await res.json();
@@ -44,7 +45,7 @@ export async function fetchProtocols(): Promise<Protocol[]> {
 // ── Fetch single protocol detail (TVL history) ──
 export async function fetchProtocolDetail(slug: string) {
   try {
-    const res = await fetch(`${DEFILLAMA_BASE}/protocol/${slug}`);
+    const res = await fetchWithTimeout(`${DEFILLAMA_BASE}/protocol/${slug}`);
     if (!res.ok) throw new Error(`DeFiLlama protocol ${res.status}`);
     return await res.json();
   } catch (err) {
@@ -61,7 +62,7 @@ export async function fetchProtocolTvlChart(slug: string): Promise<number[]> {
   if (cached && Date.now() - cached.ts < 300_000) return cached.data;
 
   try {
-    const res = await fetch(`${DEFILLAMA_BASE}/protocol/${slug}`);
+    const res = await fetchWithTimeout(`${DEFILLAMA_BASE}/protocol/${slug}`);
     if (!res.ok) throw new Error(`DeFiLlama chart ${res.status}`);
     const json = await res.json();
 
@@ -82,7 +83,7 @@ export async function fetchProtocolTvlChart(slug: string): Promise<number[]> {
 // ── Fetch total Solana TVL ──
 export async function fetchSolanaTotalTvl(): Promise<number> {
   try {
-    const res = await fetch(`${DEFILLAMA_BASE}/v2/chains`);
+    const res = await fetchWithTimeout(`${DEFILLAMA_BASE}/v2/chains`);
     if (!res.ok) throw new Error(`DeFiLlama chains ${res.status}`);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const chains: any[] = await res.json();

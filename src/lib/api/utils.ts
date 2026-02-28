@@ -2,6 +2,15 @@
 // SOLANA UTILITIES
 // ═══════════════════════════════════════════════════
 
+// Fetch with timeout — prevents API calls from hanging indefinitely
+export function fetchWithTimeout(
+  url: string,
+  opts: RequestInit & { timeout?: number } = {},
+): Promise<Response> {
+  const { timeout = 8000, ...fetchOpts } = opts;
+  return fetch(url, { ...fetchOpts, signal: AbortSignal.timeout(timeout) });
+}
+
 // Validate Solana address (base58, 32-44 chars)
 export function isValidSolanaAddress(input: string): boolean {
   return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(input);

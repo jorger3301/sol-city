@@ -115,24 +115,28 @@ export async function POST(request: Request) {
     );
   }
 
-  // Ensure billboards bucket exists
-  const { data: buckets } = await sb.storage.listBuckets();
-  const bucketExists = buckets?.some((b) => b.name === "billboards");
-  if (!bucketExists) {
-    await sb.storage.createBucket("billboards", { public: true });
-  }
-
   // Upload file (overwrite on re-upload)
   const ext = file.type.split("/")[1] === "jpeg" ? "jpg" : file.type.split("/")[1];
   const filePath = `${dev.id}_${slotIndex}.${ext}`;
   const fileBuffer = await file.arrayBuffer();
 
-  const { error: uploadError } = await sb.storage
+  let { error: uploadError } = await sb.storage
     .from("billboards")
     .upload(filePath, fileBuffer, {
       contentType: file.type,
       upsert: true,
     });
+
+  // If bucket doesn't exist yet (first deploy), create it and retry
+  if (uploadError?.message?.includes("not found")) {
+    await sb.storage.createBucket("billboards", { public: true });
+    ({ error: uploadError } = await sb.storage
+      .from("billboards")
+      .upload(filePath, fileBuffer, {
+        contentType: file.type,
+        upsert: true,
+      }));
+  }
 
   if (uploadError) {
     console.error("Upload error:", uploadError);

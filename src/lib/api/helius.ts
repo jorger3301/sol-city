@@ -5,6 +5,7 @@
 
 import type { WalletData, WalletToken, WalletTransfer } from './types';
 import { SOL_MINT } from './registry';
+import { fetchWithTimeout } from './utils';
 
 const HELIUS_BASE = 'https://api.helius.xyz';
 
@@ -18,14 +19,14 @@ export async function fetchWallet(
 
   try {
     const [balancesRes, historyRes, identityRes, transfersRes, fundedByRes, sigCountRes] = await Promise.all([
-      fetch(`${HELIUS_BASE}/v1/wallet/${address}/balances?api-key=${key}`),
+      fetchWithTimeout(`${HELIUS_BASE}/v1/wallet/${address}/balances?api-key=${key}`, { timeout: 10_000 }),
       // v0 enhanced transactions gives us source/type for protocol detection
-      fetch(`${HELIUS_BASE}/v0/addresses/${address}/transactions?api-key=${key}&limit=50`).catch(() => null),
-      fetch(`${HELIUS_BASE}/v1/wallet/${address}/identity?api-key=${key}`).catch(() => null),
-      fetch(`${HELIUS_BASE}/v1/wallet/${address}/transfers?api-key=${key}&limit=50`).catch(() => null),
-      fetch(`${HELIUS_BASE}/v1/wallet/${address}/funded-by?api-key=${key}`).catch(() => null),
+      fetchWithTimeout(`${HELIUS_BASE}/v0/addresses/${address}/transactions?api-key=${key}&limit=50`, { timeout: 10_000 }).catch(() => null),
+      fetchWithTimeout(`${HELIUS_BASE}/v1/wallet/${address}/identity?api-key=${key}`, { timeout: 10_000 }).catch(() => null),
+      fetchWithTimeout(`${HELIUS_BASE}/v1/wallet/${address}/transfers?api-key=${key}&limit=50`, { timeout: 10_000 }).catch(() => null),
+      fetchWithTimeout(`${HELIUS_BASE}/v1/wallet/${address}/funded-by?api-key=${key}`, { timeout: 10_000 }).catch(() => null),
       // RPC call for total transaction count
-      fetch(`https://mainnet.helius-rpc.com/?api-key=${key}`, {
+      fetchWithTimeout(`https://mainnet.helius-rpc.com/?api-key=${key}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -33,6 +34,7 @@ export async function fetchWallet(
           method: 'getSignaturesForAddress',
           params: [address, { limit: 1000 }],
         }),
+        timeout: 10_000,
       }).catch(() => null),
     ]);
 
@@ -176,8 +178,8 @@ export async function fetchWallet(
 async function fetchWalletV0(address: string, key: string): Promise<WalletData> {
   try {
     const [balanceRes, historyRes] = await Promise.all([
-      fetch(`${HELIUS_BASE}/v0/addresses/${address}/balances?api-key=${key}`),
-      fetch(`${HELIUS_BASE}/v0/addresses/${address}/transactions?api-key=${key}&limit=100`),
+      fetchWithTimeout(`${HELIUS_BASE}/v0/addresses/${address}/balances?api-key=${key}`, { timeout: 10_000 }),
+      fetchWithTimeout(`${HELIUS_BASE}/v0/addresses/${address}/transactions?api-key=${key}&limit=100`, { timeout: 10_000 }),
     ]);
 
     if (!balanceRes.ok || !historyRes.ok) throw new Error('Helius v0 API error');

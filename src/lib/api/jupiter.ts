@@ -5,6 +5,7 @@
 
 import type { Protocol, JupiterPriceResult } from './types';
 import { PROTOCOL_MINTS, SOL_MINT } from './registry';
+import { fetchWithTimeout } from './utils';
 
 const JUPITER_BASE = process.env.NEXT_PUBLIC_JUPITER_BASE || 'https://lite-api.jup.ag';
 const JUPITER_PRICE_API = 'https://api.jup.ag/price/v3';
@@ -28,7 +29,7 @@ export async function fetchJupiterPrices(
     const headers: Record<string, string> = {};
     if (JUPITER_API_KEY) headers['x-api-key'] = JUPITER_API_KEY;
 
-    const res = await fetch(`${JUPITER_PRICE_API}?ids=${ids}`, { headers });
+    const res = await fetchWithTimeout(`${JUPITER_PRICE_API}?ids=${ids}`, { headers });
     if (!res.ok) throw new Error(`Jupiter ${res.status}`);
     const json = await res.json();
 
@@ -60,7 +61,7 @@ export async function fetchMintPrices(mints: string[]): Promise<Record<string, n
     const headers: Record<string, string> = {};
     if (JUPITER_API_KEY) headers['x-api-key'] = JUPITER_API_KEY;
 
-    const res = await fetch(`${JUPITER_PRICE_API}?ids=${ids}`, { headers });
+    const res = await fetchWithTimeout(`${JUPITER_PRICE_API}?ids=${ids}`, { headers });
     if (!res.ok) throw new Error(`Jupiter ${res.status}`);
     const json = await res.json();
 
@@ -87,7 +88,7 @@ export interface TrendingToken {
 
 export async function fetchTopTrending(limit = 20): Promise<TrendingToken[]> {
   try {
-    const res = await fetch(`${JUPITER_BASE}/tokens/v2/toptrending/1h?limit=${limit}`);
+    const res = await fetchWithTimeout(`${JUPITER_BASE}/tokens/v2/toptrending/1h?limit=${limit}`);
     if (!res.ok) throw new Error(`Jupiter trending ${res.status}`);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data: any[] = await res.json();
@@ -106,7 +107,7 @@ export async function fetchTopTrending(limit = 20): Promise<TrendingToken[]> {
 // ── Top traded tokens (24h window) ──
 export async function fetchTopTraded(limit = 30): Promise<TrendingToken[]> {
   try {
-    const res = await fetch(`${JUPITER_BASE}/tokens/v2/toptraded/24h?limit=${limit}`);
+    const res = await fetchWithTimeout(`${JUPITER_BASE}/tokens/v2/toptraded/24h?limit=${limit}`);
     if (!res.ok) throw new Error(`Jupiter top traded ${res.status}`);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data: any[] = await res.json();

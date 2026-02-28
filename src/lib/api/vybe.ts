@@ -4,6 +4,8 @@
 // Auth: X-API-Key header
 // ═══════════════════════════════════════════════════
 
+import { fetchWithTimeout } from './utils';
+
 const VYBE_BASE = 'https://api.vybenetwork.xyz';
 const VYBE_API_KEY = process.env.VYBE_API_KEY || '';
 
@@ -74,7 +76,7 @@ export async function fetchVybeTokenData(
 
   for (const mint of mints) {
     try {
-      const res = await fetch(`${VYBE_BASE}/v4/tokens/${mint}`, {
+      const res = await fetchWithTimeout(`${VYBE_BASE}/v4/tokens/${mint}`, {
         headers: { 'X-API-Key': VYBE_API_KEY },
       });
       if (!res.ok) {
@@ -98,23 +100,37 @@ export async function fetchVybeTokenData(
   return result;
 }
 
+// In-memory PnL cache — avoids N+1 Vybe calls on repeated top-traders loads
+const pnlCache = new Map<string, { data: VybePnLSummary | null; ts: number }>();
+const PNL_CACHE_TTL = 300_000; // 5 minutes
+
 /**
  * Fetch wallet PnL summary from Vybe.
  * Returns win rate, realized/unrealized PnL, trade stats, best/worst tokens.
+ * Results are cached in-memory for 5 minutes.
  */
 export async function fetchVybePnL(
   walletAddress: string,
 ): Promise<VybePnLSummary | null> {
   if (!VYBE_API_KEY) return null;
 
+  const cached = pnlCache.get(walletAddress);
+  if (cached && Date.now() - cached.ts < PNL_CACHE_TTL) return cached.data;
+
   try {
-    const res = await fetch(`${VYBE_BASE}/v4/wallets/${walletAddress}/pnl`, {
+    const res = await fetchWithTimeout(`${VYBE_BASE}/v4/wallets/${walletAddress}/pnl`, {
       headers: { 'X-API-Key': VYBE_API_KEY },
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      pnlCache.set(walletAddress, { data: null, ts: Date.now() });
+      return null;
+    }
     const data = await res.json();
-    return data.summary ?? null;
+    const summary = data.summary ?? null;
+    pnlCache.set(walletAddress, { data: summary, ts: Date.now() });
+    return summary;
   } catch {
+    pnlCache.set(walletAddress, { data: null, ts: Date.now() });
     return null;
   }
 }
@@ -129,7 +145,7 @@ export async function fetchVybeTopTraders(
   if (!VYBE_API_KEY) return [];
 
   try {
-    const res = await fetch(`${VYBE_BASE}/v4/wallets/top-traders`, {
+    const res = await fetchWithTimeout(`${VYBE_BASE}/v4/wallets/top-traders`, {
       headers: { 'X-API-Key': VYBE_API_KEY },
     });
     if (!res.ok) return [];

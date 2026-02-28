@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-const OWNER_LOGIN = "jorger3301";
+const OWNER_LOGIN = process.env.ADMIN_USERNAME ?? "";
 
 async function checkAdmin() {
   const supabase = await createServerSupabase();
