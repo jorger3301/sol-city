@@ -1498,7 +1498,7 @@ function HomeContent() {
               </h1>
               <p className="mt-2 text-[10px] leading-relaxed text-cream/80 normal-case">
                 {stats.total_developers > 0
-                  ? `A city of ${stats.total_developers.toLocaleString()} Solana protocols. Explore the skyline.`
+                  ? `Solana Protocols as a 3D City. Explore DeFi.`
                   : "Solana Protocols as a 3D City. Explore DeFi."}
               </p>
             </div>
