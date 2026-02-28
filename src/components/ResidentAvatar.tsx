@@ -1,6 +1,6 @@
 "use client";
 
-import { Facehash } from "facehash";
+import SolFace from "@/components/SolFace";
 
 interface ResidentAvatarProps {
   walletAddress: string;
@@ -11,7 +11,6 @@ interface ResidentAvatarProps {
 }
 
 const SIZE_MAP = { xs: 20, sm: 28, md: 40, lg: 48 };
-const SOL_CITY_COLORS = ["#c8e64a", "#6090e0", "#14F195", "#e8dcc8", "#f85149"];
 const DEFAULT_HOUSE_COLOR = "#6090e0";
 
 export default function ResidentAvatar({
@@ -24,6 +23,7 @@ export default function ResidentAvatar({
   const px = SIZE_MAP[size];
   const borderWidth = size === "xs" ? 1 : 2;
   const borderColor = houseColor || DEFAULT_HOUSE_COLOR;
+  const innerSize = px - borderWidth * 2;
 
   return (
     <div
@@ -34,15 +34,10 @@ export default function ResidentAvatar({
         border: `${borderWidth}px solid ${borderColor}`,
       }}
     >
-      <Facehash
-        name={walletAddress}
-        size={px - borderWidth * 2}
-        variant="solid"
-        intensity3d="subtle"
-        showInitial={false}
-        interactive={interactive}
+      <SolFace
+        walletAddress={walletAddress}
+        size={innerSize}
         enableBlink={interactive}
-        colors={SOL_CITY_COLORS}
       />
     </div>
   );
