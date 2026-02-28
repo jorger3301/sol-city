@@ -28,7 +28,7 @@ import RaidPreviewModal from "@/components/RaidPreviewModal";
 import RaidOverlay from "@/components/RaidOverlay";
 import PillModal from "@/components/PillModal";
 import FounderMessage from "@/components/FounderMessage";
-import MobileWalletPicker from "@/components/ui/MobileWalletPicker";
+import WalletPicker from "@/components/ui/WalletPicker";
 import RabbitCompletion from "@/components/RabbitCompletion";
 import { DEFAULT_SKY_ADS, buildAdLink, trackAdEvent, isBuildingAd } from "@/lib/skyAds";
 import { track } from "@vercel/analytics";
@@ -2852,8 +2852,8 @@ function HomeContent() {
           houseColor={walletAuth.houseColor}
         />
       )}
-      {walletAuth.showMobileWalletPicker && (
-        <MobileWalletPicker onClose={walletAuth.closeMobileWalletPicker} />
+      {walletAuth.showWalletPicker && (
+        <WalletPicker onClose={walletAuth.closeWalletPicker} />
       )}
     </main>
   );

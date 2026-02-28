@@ -3,13 +3,7 @@
 import { useWallet, useConnectWallet, useDisconnectWallet, useWalletConnectors } from "@solana/connector";
 import { truncateAddress } from "@/lib/api/utils";
 import { useState } from "react";
-import MobileWalletPicker from "@/components/ui/MobileWalletPicker";
-
-function isMobileWithNoExtension(): boolean {
-  if (typeof window === "undefined") return false;
-  const ua = navigator.userAgent;
-  return /iPhone|iPad|iPod|Android/i.test(ua) && !/(WebView|wv\))/i.test(ua);
-}
+import WalletPicker from "@/components/ui/WalletPicker";
 
 interface Props {
   accent: string;
@@ -28,11 +22,7 @@ export default function ConnectButton({ accent, shadow }: Props) {
     setError(null);
     const first = connectors[0];
     if (!first) {
-      if (isMobileWithNoExtension()) {
-        setShowPicker(true);
-        return;
-      }
-      setError("No wallet found. Install Phantom or Solflare.");
+      setShowPicker(true);
       return;
     }
     try {
@@ -78,7 +68,7 @@ export default function ConnectButton({ accent, shadow }: Props) {
         )}
       </div>
       {showPicker && (
-        <MobileWalletPicker onClose={() => setShowPicker(false)} />
+        <WalletPicker onClose={() => setShowPicker(false)} />
       )}
     </>
   );

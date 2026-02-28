@@ -39,18 +39,25 @@ function SolflareIcon({ size = 16 }: { size?: number }) {
   );
 }
 
-const MOBILE_WALLETS = [
+function isMobile(): boolean {
+  if (typeof window === "undefined") return false;
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+}
+
+const WALLETS = [
   {
     name: "Phantom",
     icon: PhantomIcon,
-    browse: (href: string) =>
+    mobileBrowse: (href: string) =>
       `https://phantom.app/ul/browse/${encodeURIComponent(href)}`,
+    extensionUrl: "https://phantom.app/download",
   },
   {
     name: "Solflare",
     icon: SolflareIcon,
-    browse: (href: string) =>
+    mobileBrowse: (href: string) =>
       `https://solflare.com/ul/v1/browse/${encodeURIComponent(href)}?ref=${encodeURIComponent(href)}`,
+    extensionUrl: "https://solflare.com/download",
   },
 ];
 
@@ -58,8 +65,9 @@ interface Props {
   onClose: () => void;
 }
 
-export default function MobileWalletPicker({ onClose }: Props) {
+export default function WalletPicker({ onClose }: Props) {
   const href = typeof window !== "undefined" ? window.location.href : "";
+  const mobile = isMobile();
 
   return (
     <div
@@ -71,14 +79,16 @@ export default function MobileWalletPicker({ onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <p className="mb-3 text-center text-[11px] text-cream">
-          Open in wallet
+          {mobile ? "Open in wallet" : "Install a wallet"}
         </p>
 
         <div className="flex flex-col gap-2">
-          {MOBILE_WALLETS.map((w) => (
+          {WALLETS.map((w) => (
             <a
               key={w.name}
-              href={w.browse(href)}
+              href={mobile ? w.mobileBrowse(href) : w.extensionUrl}
+              target={mobile ? undefined : "_blank"}
+              rel={mobile ? undefined : "noopener noreferrer"}
               className="flex items-center gap-2.5 border border-border px-3 py-2.5 text-[11px] text-cream transition-colors hover:border-border-light hover:bg-raised active:bg-raised"
             >
               <w.icon size={16} />

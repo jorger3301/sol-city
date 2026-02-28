@@ -25,20 +25,14 @@ export interface WalletAuthState {
   interactedProtocols: ProtocolInteraction[];
   connecting: boolean;
   error: string | null;
-  showMobileWalletPicker: boolean;
+  showWalletPicker: boolean;
   clearError: () => void;
-  closeMobileWalletPicker: () => void;
+  closeWalletPicker: () => void;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
 }
 
 const SIGN_MESSAGE = "Sign in to Sol City";
-
-function isMobileWithNoExtension(): boolean {
-  if (typeof window === "undefined") return false;
-  const ua = navigator.userAgent;
-  return /iPhone|iPad|iPod|Android/i.test(ua) && !/(WebView|wv\))/i.test(ua);
-}
 
 export function useWalletAuth(): WalletAuthState {
   const wallet = useWallet();
@@ -54,13 +48,13 @@ export function useWalletAuth(): WalletAuthState {
   const [interactedProtocols, setInteractedProtocols] = useState<ProtocolInteraction[]>([]);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showMobileWalletPicker, setShowMobileWalletPicker] = useState(false);
+  const [showWalletPicker, setShowWalletPicker] = useState(false);
 
   const initializedRef = useRef(false);
   const authingRef = useRef(false);
 
   const clearError = useCallback(() => setError(null), []);
-  const closeMobileWalletPicker = useCallback(() => setShowMobileWalletPicker(false), []);
+  const closeWalletPicker = useCallback(() => setShowWalletPicker(false), []);
 
   // On mount: check for existing wallet session cookie
   useEffect(() => {
@@ -105,13 +99,7 @@ export function useWalletAuth(): WalletAuthState {
     setError(null);
     const first = connectors[0];
     if (!first) {
-      // On mobile (iOS/Android), MWA may not register connectors.
-      // Show wallet picker so user can open in their preferred wallet's browser.
-      if (isMobileWithNoExtension()) {
-        setShowMobileWalletPicker(true);
-        return;
-      }
-      setError("No wallet found. Install Phantom or Solflare.");
+      setShowWalletPicker(true);
       return;
     }
     setConnecting(true);
@@ -215,7 +203,7 @@ export function useWalletAuth(): WalletAuthState {
     setWalletData(null);
     setInteractedProtocols([]);
     setError(null);
-    setShowMobileWalletPicker(false);
+    setShowWalletPicker(false);
   }, [walletDisconnect]);
 
   return {
@@ -227,9 +215,9 @@ export function useWalletAuth(): WalletAuthState {
     interactedProtocols,
     connecting,
     error,
-    showMobileWalletPicker,
+    showWalletPicker,
     clearError,
-    closeMobileWalletPicker,
+    closeWalletPicker,
     connect,
     disconnect,
   };
