@@ -3,6 +3,13 @@
 import { useWallet, useConnectWallet, useDisconnectWallet, useWalletConnectors } from "@solana/connector";
 import { truncateAddress } from "@/lib/api/utils";
 import { useState } from "react";
+import MobileWalletPicker from "@/components/ui/MobileWalletPicker";
+
+function isMobileWithNoExtension(): boolean {
+  if (typeof window === "undefined") return false;
+  const ua = navigator.userAgent;
+  return /iPhone|iPad|iPod|Android/i.test(ua) && !/(WebView|wv\))/i.test(ua);
+}
 
 interface Props {
   accent: string;
@@ -15,15 +22,14 @@ export default function ConnectButton({ accent, shadow }: Props) {
   const { disconnect } = useDisconnectWallet();
   const connectors = useWalletConnectors();
   const [error, setError] = useState<string | null>(null);
+  const [showPicker, setShowPicker] = useState(false);
 
   const handleConnect = async () => {
     setError(null);
     const first = connectors[0];
     if (!first) {
-      // On mobile, redirect to Phantom's in-app browser
-      if (typeof window !== "undefined" && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-        const url = encodeURIComponent(window.location.href);
-        window.location.href = `https://phantom.app/ul/browse/${url}`;
+      if (isMobileWithNoExtension()) {
+        setShowPicker(true);
         return;
       }
       setError("No wallet found. Install Phantom or Solflare.");
@@ -55,20 +61,25 @@ export default function ConnectButton({ accent, shadow }: Props) {
   }
 
   return (
-    <div className="flex flex-col items-center gap-1">
-      <button
-        onClick={handleConnect}
-        className="btn-press px-3 py-1.5 text-[10px] text-bg"
-        style={{
-          backgroundColor: accent,
-          boxShadow: `2px 2px 0 0 ${shadow}`,
-        }}
-      >
-        Connect Wallet
-      </button>
-      {error && (
-        <p className="text-[9px] text-[#f85149]">{error}</p>
+    <>
+      <div className="flex flex-col items-center gap-1">
+        <button
+          onClick={handleConnect}
+          className="btn-press px-3 py-1.5 text-[10px] text-bg"
+          style={{
+            backgroundColor: accent,
+            boxShadow: `2px 2px 0 0 ${shadow}`,
+          }}
+        >
+          Connect Wallet
+        </button>
+        {error && (
+          <p className="text-[9px] text-[#f85149]">{error}</p>
+        )}
+      </div>
+      {showPicker && (
+        <MobileWalletPicker onClose={() => setShowPicker(false)} />
       )}
-    </div>
+    </>
   );
 }

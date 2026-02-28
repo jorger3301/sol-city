@@ -25,7 +25,9 @@ export interface WalletAuthState {
   interactedProtocols: ProtocolInteraction[];
   connecting: boolean;
   error: string | null;
+  showMobileWalletPicker: boolean;
   clearError: () => void;
+  closeMobileWalletPicker: () => void;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
 }
@@ -36,12 +38,6 @@ function isMobileWithNoExtension(): boolean {
   if (typeof window === "undefined") return false;
   const ua = navigator.userAgent;
   return /iPhone|iPad|iPod|Android/i.test(ua) && !/(WebView|wv\))/i.test(ua);
-}
-
-function openInWalletBrowser(): void {
-  const url = encodeURIComponent(window.location.href);
-  // Phantom universal link — opens the current page in Phantom's in-app browser
-  window.location.href = `https://phantom.app/ul/browse/${url}`;
 }
 
 export function useWalletAuth(): WalletAuthState {
@@ -58,11 +54,13 @@ export function useWalletAuth(): WalletAuthState {
   const [interactedProtocols, setInteractedProtocols] = useState<ProtocolInteraction[]>([]);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showMobileWalletPicker, setShowMobileWalletPicker] = useState(false);
 
   const initializedRef = useRef(false);
   const authingRef = useRef(false);
 
   const clearError = useCallback(() => setError(null), []);
+  const closeMobileWalletPicker = useCallback(() => setShowMobileWalletPicker(false), []);
 
   // On mount: check for existing wallet session cookie
   useEffect(() => {
@@ -108,9 +106,9 @@ export function useWalletAuth(): WalletAuthState {
     const first = connectors[0];
     if (!first) {
       // On mobile (iOS/Android), MWA may not register connectors.
-      // Redirect to Phantom's in-app browser where it injects its provider.
+      // Show wallet picker so user can open in their preferred wallet's browser.
       if (isMobileWithNoExtension()) {
-        openInWalletBrowser();
+        setShowMobileWalletPicker(true);
         return;
       }
       setError("No wallet found. Install Phantom or Solflare.");
@@ -217,6 +215,7 @@ export function useWalletAuth(): WalletAuthState {
     setWalletData(null);
     setInteractedProtocols([]);
     setError(null);
+    setShowMobileWalletPicker(false);
   }, [walletDisconnect]);
 
   return {
@@ -228,7 +227,9 @@ export function useWalletAuth(): WalletAuthState {
     interactedProtocols,
     connecting,
     error,
+    showMobileWalletPicker,
     clearError,
+    closeMobileWalletPicker,
     connect,
     disconnect,
   };
