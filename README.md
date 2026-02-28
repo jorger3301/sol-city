@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="public/og-image.png" alt="Sol City — Solana Protocols as a 3D City" width="800" />
+  <img src="public/og-image.png?v=2" alt="Sol City — Solana Protocols as a 3D City" width="800" />
 </p>
 
 ---
