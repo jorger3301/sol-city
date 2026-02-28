@@ -23,8 +23,6 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    creator: "@samuelrizzondev",
-    site: "@samuelrizzondev",
   },
 };
 
@@ -169,7 +167,7 @@ export default async function AdvertisePage() {
                 },
                 {
                   q: "Can I change my ad text?",
-                  a: "Yes. One free text change per week. Email samuelrizzondev@gmail.com.",
+                  a: "Yes. One free text change per week. Reach out via the contact info below.",
                 },
                 {
                   q: "What if I want a refund?",
@@ -206,28 +204,6 @@ export default async function AdvertisePage() {
             >
               Browse Ad Formats
             </a>
-            <p className="mt-4 text-[11px] text-muted normal-case">
-              Questions?{" "}
-              <a
-                href="mailto:samuelrizzondev@gmail.com"
-                className="transition-colors hover:text-cream"
-                style={{ color: ACCENT }}
-              >
-                samuelrizzondev@gmail.com
-              </a>
-            </p>
-            <p className="mt-4 text-[11px] text-muted normal-case">
-              built by{" "}
-              <a
-                href="https://x.com/samuelrizzondev"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="transition-colors hover:text-cream"
-                style={{ color: ACCENT }}
-              >
-                @samuelrizzondev
-              </a>
-            </p>
           </div>
         </div>
       </div>

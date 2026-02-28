@@ -405,9 +405,9 @@ export default async function Image({
             textTransform: "uppercase",
           }}
         >
-          <span style={{ fontSize: 34, color: cream }}>GIT</span>
+          <span style={{ fontSize: 34, color: cream }}>SOL</span>
           <span style={{ fontSize: 34, color: accent }}>CITY</span>
-          <span style={{ fontSize: 16, color: muted, marginLeft: 8 }}>by @samuelrizzondev</span>
+          <span style={{ fontSize: 16, color: muted, marginLeft: 8 }}>solcity.xyz</span>
         </div>
       </div>
     ),

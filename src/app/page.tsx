@@ -829,9 +829,9 @@ function HomeContent() {
   // re-mounts the component and loads fresh data via the mount effect above.
 
   // ─── Intro text phase timing (14s total) ─────────────────────
-  // Phase 0: "Somewhere in the internet..."   0.8s → fade out ~3.8s
-  // Phase 1: "Developers became buildings"    4.2s → fade out ~7.2s
-  // Phase 2: "And commits became floors"      7.6s → fade out ~10.6s
+  // Phase 0: "Somewhere on the blockchain..."  0.8s → fade out ~3.8s
+  // Phase 1: "Protocols became buildings"      4.2s → fade out ~7.2s
+  // Phase 2: "And TVL became floors"           7.6s → fade out ~10.6s
   // Phase 3: "Welcome to Sol City"            11.0s → confetti + hold until end
   const INTRO_TEXT_SCHEDULE = [800, 4200, 7600, 11000];
   const [introConfetti, setIntroConfetti] = useState(false);
@@ -1217,9 +1217,9 @@ function HomeContent() {
           <div className="absolute inset-x-0 bottom-0 flex items-center justify-center" style={{ height: "18%" }}>
             {/* Narrative texts (phases 0-2) */}
             {[
-              "Somewhere in the internet...",
-              "Developers became buildings",
-              "And commits became floors",
+              "Somewhere on the blockchain...",
+              "Protocols became buildings",
+              "And TVL became floors",
             ].map((text, i) => (
               <p
                 key={i}
@@ -1492,19 +1492,7 @@ function HomeContent() {
               <p className="mt-2 text-[10px] leading-relaxed text-cream/80 normal-case">
                 {stats.total_developers > 0
                   ? `A city of ${stats.total_developers.toLocaleString()} Solana protocols. Explore the skyline.`
-                  : "Solana protocols as buildings in a 3D city. Explore the skyline."}
-              </p>
-              <p className="pointer-events-auto mt-1 text-[9px] text-cream/50 normal-case">
-                built by{" "}
-                <a
-                  href="https://x.com/samuelrizzondev"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="transition-colors hover:text-cream"
-                  style={{ color: theme.accent }}
-                >
-                  @samuelrizzondev
-                </a>
+                  : "Solana Protocols as a 3D City. Explore DeFi."}
               </p>
             </div>
 
@@ -1809,7 +1797,15 @@ function HomeContent() {
 
               {/* Header with avatar + name */}
               <div className="flex items-center gap-3 px-4 pb-3 sm:pt-4">
-                {selectedBuilding.avatar_url && (
+                {selectedBuilding.isHouse ? (
+                  <span
+                    className="h-12 w-12 flex-shrink-0 border-[2px] border-border"
+                    style={{
+                      backgroundColor: selectedBuilding.custom_color || "#6090e0",
+                      imageRendering: "pixelated",
+                    }}
+                  />
+                ) : selectedBuilding.avatar_url ? (
                   <Image
                     src={selectedBuilding.avatar_url}
                     alt={selectedBuilding.login}
@@ -1818,23 +1814,34 @@ function HomeContent() {
                     className="border-[2px] border-border flex-shrink-0"
                     style={{ imageRendering: "pixelated" }}
                   />
-                )}
+                ) : null}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     {selectedBuilding.name && (
                       <p className="truncate text-sm text-cream">{selectedBuilding.name}</p>
                     )}
-                    {selectedBuilding.claimed && (
+                    {selectedBuilding.isHouse ? (
+                      <span
+                        className="flex-shrink-0 px-1.5 py-0.5 text-[7px]"
+                        style={{ color: "#14F195" }}
+                      >
+                        ★ Resident
+                      </span>
+                    ) : selectedBuilding.claimed ? (
                       <span
                         className="flex-shrink-0 px-1.5 py-0.5 text-[7px] text-bg"
                         style={{ backgroundColor: theme.accent }}
                       >
                         Claimed
                       </span>
-                    )}
+                    ) : null}
                   </div>
-                  <p className="truncate text-[10px] text-muted">@{selectedBuilding.login}</p>
-                  {selectedBuilding.active_raid_tag && (
+                  <p className="truncate text-[10px] text-muted">
+                    {selectedBuilding.isHouse
+                      ? truncateAddress(selectedBuilding.login)
+                      : `@${selectedBuilding.login}`}
+                  </p>
+                  {!selectedBuilding.isHouse && selectedBuilding.active_raid_tag && (
                     <p className="text-[8px] text-red-400">
                       Raided by @{selectedBuilding.active_raid_tag.attacker_login}
                     </p>
@@ -1843,154 +1850,197 @@ function HomeContent() {
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-3 gap-px bg-border/30 mx-4 mb-3 border border-border/50">
-                {[
-                  { label: "Rank", value: `#${selectedBuilding.rank}` },
-                  { label: "TVL", value: fmtUsd(selectedBuilding.contributions) },
-                  { label: "Volume", value: fmtUsd(selectedBuilding.total_stars) },
-                  { label: "Category", value: selectedBuilding.primary_language?.split("|")[0]?.trim() ?? "—" },
-                  { label: "Kudos", value: (selectedBuilding.kudos_count ?? 0).toLocaleString() },
-                  { label: "Visits", value: (selectedBuilding.visit_count ?? 0).toLocaleString() },
-                ].map((s) => (
-                  <div key={s.label} className="bg-bg-card p-2 text-center">
-                    <div className="text-xs" style={{ color: theme.accent }}>{s.value}</div>
-                    <div className="text-[8px] text-muted mt-0.5">{s.label}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Achievements with tier colors, sorted by tier */}
-              {selectedBuilding.achievements && selectedBuilding.achievements.length > 0 && (
-                <div className="mx-4 mb-3 flex flex-wrap gap-1">
-                  {[...selectedBuilding.achievements]
-                    .sort((a, b) => {
-                      const tierOrder = ["diamond", "gold", "silver", "bronze"];
-                      const ta = tierOrder.indexOf(ACHIEVEMENT_TIERS_MAP[a] ?? "bronze");
-                      const tb = tierOrder.indexOf(ACHIEVEMENT_TIERS_MAP[b] ?? "bronze");
-                      return ta - tb;
-                    })
-                    .slice(0, 3)
-                    .map((ach) => {
-                      const tier = ACHIEVEMENT_TIERS_MAP[ach];
-                      const color = tier ? TIER_COLORS_MAP[tier] : undefined;
-                      const emoji = tier ? TIER_EMOJI_MAP[tier] : "";
-                      return (
-                        <span
-                          key={ach}
-                          className="px-1.5 py-0.5 text-[8px] border normal-case"
-                          style={{
-                            borderColor: color ?? "rgba(255,255,255,0.15)",
-                            color: color ?? "#a0a0b0",
-                          }}
-                        >
-                          {emoji} {ACHIEVEMENT_NAMES_MAP[ach] ?? ach.replace(/_/g, " ")}
-                        </span>
-                      );
-                    })}
-                  {selectedBuilding.achievements.length > 3 && (
-                    <Link
-                      href={`/${selectedBuilding.login}`}
-                      className="px-1.5 py-0.5 text-[8px] transition-colors hover:text-cream"
-                      style={{ color: theme.accent }}
-                    >
-                      +{selectedBuilding.achievements.length - 3} more &rarr;
-                    </Link>
-                  )}
+              {selectedBuilding.isHouse ? (
+                <div className="grid grid-cols-2 gap-px bg-border/30 mx-4 mb-3 border border-border/50">
+                  {[
+                    { label: "Type", value: "Resident House" },
+                    { label: "Protocols", value: selectedBuilding.primary_language === "Resident" ? "—" : selectedBuilding.primary_language ?? "—" },
+                  ].map((s) => (
+                    <div key={s.label} className="bg-bg-card p-2 text-center">
+                      <div className="text-xs" style={{ color: "#14F195" }}>{s.value}</div>
+                      <div className="text-[8px] text-muted mt-0.5">{s.label}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-px bg-border/30 mx-4 mb-3 border border-border/50">
+                  {[
+                    { label: "Rank", value: `#${selectedBuilding.rank}` },
+                    { label: "TVL", value: fmtUsd(selectedBuilding.contributions) },
+                    { label: "Volume", value: fmtUsd(selectedBuilding.total_stars) },
+                    { label: "Category", value: selectedBuilding.primary_language?.split("|")[0]?.trim() ?? "—" },
+                    { label: "Kudos", value: (selectedBuilding.kudos_count ?? 0).toLocaleString() },
+                    { label: "Visits", value: (selectedBuilding.visit_count ?? 0).toLocaleString() },
+                  ].map((s) => (
+                    <div key={s.label} className="bg-bg-card p-2 text-center">
+                      <div className="text-xs" style={{ color: theme.accent }}>{s.value}</div>
+                      <div className="text-[8px] text-muted mt-0.5">{s.label}</div>
+                    </div>
+                  ))}
                 </div>
               )}
 
-              {/* A7: Show equipped items on other devs' buildings (mimetic desire) */}
-              {selectedBuilding.login.toLowerCase() !== authLogin && (() => {
-                const equipped: string[] = [];
-                if (selectedBuilding.loadout?.crown) equipped.push(selectedBuilding.loadout.crown);
-                if (selectedBuilding.loadout?.roof) equipped.push(selectedBuilding.loadout.roof);
-                if (selectedBuilding.loadout?.aura) equipped.push(selectedBuilding.loadout.aura);
-                for (const fi of ["custom_color", "billboard", "led_banner"]) {
-                  if (selectedBuilding.owned_items.includes(fi)) equipped.push(fi);
-                }
-                if (equipped.length === 0) return null;
-                const shown = equipped.slice(0, 3);
-                const extra = equipped.length - 3;
-                return (
-                  <div
-                    className="mx-4 mb-3 border-[2px] p-2.5"
-                    style={{ borderColor: `${theme.accent}33`, backgroundColor: `${theme.accent}08` }}
-                  >
-                    <div className="flex flex-wrap gap-1.5">
-                      {shown.map((id) => (
-                        <span
-                          key={id}
-                          className="text-[9px] normal-case"
+              {/* Protocol-only sections (skip for houses) */}
+              {!selectedBuilding.isHouse && (
+                <>
+                  {/* Achievements with tier colors, sorted by tier */}
+                  {selectedBuilding.achievements && selectedBuilding.achievements.length > 0 && (
+                    <div className="mx-4 mb-3 flex flex-wrap gap-1">
+                      {[...selectedBuilding.achievements]
+                        .sort((a, b) => {
+                          const tierOrder = ["diamond", "gold", "silver", "bronze"];
+                          const ta = tierOrder.indexOf(ACHIEVEMENT_TIERS_MAP[a] ?? "bronze");
+                          const tb = tierOrder.indexOf(ACHIEVEMENT_TIERS_MAP[b] ?? "bronze");
+                          return ta - tb;
+                        })
+                        .slice(0, 3)
+                        .map((ach) => {
+                          const tier = ACHIEVEMENT_TIERS_MAP[ach];
+                          const color = tier ? TIER_COLORS_MAP[tier] : undefined;
+                          const emoji = tier ? TIER_EMOJI_MAP[tier] : "";
+                          return (
+                            <span
+                              key={ach}
+                              className="px-1.5 py-0.5 text-[8px] border normal-case"
+                              style={{
+                                borderColor: color ?? "rgba(255,255,255,0.15)",
+                                color: color ?? "#a0a0b0",
+                              }}
+                            >
+                              {emoji} {ACHIEVEMENT_NAMES_MAP[ach] ?? ach.replace(/_/g, " ")}
+                            </span>
+                          );
+                        })}
+                      {selectedBuilding.achievements.length > 3 && (
+                        <Link
+                          href={`/${selectedBuilding.login}`}
+                          className="px-1.5 py-0.5 text-[8px] transition-colors hover:text-cream"
                           style={{ color: theme.accent }}
                         >
-                          {ITEM_EMOJIS[id] ?? "🎁"} {ITEM_NAMES[id] ?? id}
-                        </span>
-                      ))}
-                      {extra > 0 && (
-                        <span className="text-[9px] text-muted">
-                          +{extra} more
-                        </span>
+                          +{selectedBuilding.achievements.length - 3} more &rarr;
+                        </Link>
                       )}
                     </div>
-                    {/* Shop link removed — buildings are protocols, not user-owned */}
-                  </div>
-                );
-              })()}
+                  )}
 
-              {/* Wallet interaction indicator */}
-              {walletAuth.isConnected && (() => {
-                const interaction = walletAuth.interactedProtocols.find(
-                  (p) => p.protocol_slug === selectedBuilding.login
-                );
-                if (!interaction) return null;
-                return (
-                  <div
-                    className="mx-4 mb-3 border-[2px] p-2.5 text-center"
-                    style={{ borderColor: "#14F19544", backgroundColor: "#14F19508" }}
-                  >
-                    <p className="text-[10px] normal-case" style={{ color: "#14F195" }}>
-                      You&apos;ve interacted with this protocol ({interaction.tx_count} txs)
-                    </p>
-                  </div>
-                );
-              })()}
+                  {/* A7: Show equipped items on other devs' buildings (mimetic desire) */}
+                  {selectedBuilding.login.toLowerCase() !== authLogin && (() => {
+                    const equipped: string[] = [];
+                    if (selectedBuilding.loadout?.crown) equipped.push(selectedBuilding.loadout.crown);
+                    if (selectedBuilding.loadout?.roof) equipped.push(selectedBuilding.loadout.roof);
+                    if (selectedBuilding.loadout?.aura) equipped.push(selectedBuilding.loadout.aura);
+                    for (const fi of ["custom_color", "billboard", "led_banner"]) {
+                      if (selectedBuilding.owned_items.includes(fi)) equipped.push(fi);
+                    }
+                    if (equipped.length === 0) return null;
+                    const shown = equipped.slice(0, 3);
+                    const extra = equipped.length - 3;
+                    return (
+                      <div
+                        className="mx-4 mb-3 border-[2px] p-2.5"
+                        style={{ borderColor: `${theme.accent}33`, backgroundColor: `${theme.accent}08` }}
+                      >
+                        <div className="flex flex-wrap gap-1.5">
+                          {shown.map((id) => (
+                            <span
+                              key={id}
+                              className="text-[9px] normal-case"
+                              style={{ color: theme.accent }}
+                            >
+                              {ITEM_EMOJIS[id] ?? "🎁"} {ITEM_NAMES[id] ?? id}
+                            </span>
+                          ))}
+                          {extra > 0 && (
+                            <span className="text-[9px] text-muted">
+                              +{extra} more
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
-              {/* Compare button */}
-              {!flyMode && (
-                <div className="mx-4 mb-3">
-                  <button
-                    onClick={() => {
-                      setCompareBuilding(selectedBuilding);
-                      setSelectedBuilding(null);
-                      if (!exploreMode) setExploreMode(true);
-                    }}
-                    className="btn-press w-full border-[2px] border-border py-1.5 text-center text-[9px] text-cream transition-colors hover:border-border-light"
-                  >
-                    Compare
-                  </button>
-                </div>
+                  {/* Wallet interaction indicator */}
+                  {walletAuth.isConnected && (() => {
+                    const interaction = walletAuth.interactedProtocols.find(
+                      (p) => p.protocol_slug === selectedBuilding.login
+                    );
+                    if (!interaction) return null;
+                    return (
+                      <div
+                        className="mx-4 mb-3 border-[2px] p-2.5 text-center"
+                        style={{ borderColor: "#14F19544", backgroundColor: "#14F19508" }}
+                      >
+                        <p className="text-[10px] normal-case" style={{ color: "#14F195" }}>
+                          You&apos;ve interacted with this protocol ({interaction.tx_count} txs)
+                        </p>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Compare button */}
+                  {!flyMode && (
+                    <div className="mx-4 mb-3">
+                      <button
+                        onClick={() => {
+                          setCompareBuilding(selectedBuilding);
+                          setSelectedBuilding(null);
+                          if (!exploreMode) setExploreMode(true);
+                        }}
+                        className="btn-press w-full border-[2px] border-border py-1.5 text-center text-[9px] text-cream transition-colors hover:border-border-light"
+                      >
+                        Compare
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
 
               {/* Actions */}
               <div className="flex gap-2 p-4 pt-0 pb-5 sm:pb-4">
-                <Link
-                  href={`/${selectedBuilding.login}`}
-                  className="btn-press flex-1 py-2 text-center text-[10px] text-bg"
-                  style={{
-                    backgroundColor: theme.accent,
-                    boxShadow: `2px 2px 0 0 ${theme.shadow}`,
-                  }}
-                >
-                  View Protocol
-                </Link>
-                <a
-                  href={`https://defillama.com/protocol/${selectedBuilding.login}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-press flex-1 border-[2px] border-border py-2 text-center text-[10px] text-cream transition-colors hover:border-border-light"
-                >
-                  DeFiLlama
-                </a>
+                {selectedBuilding.isHouse ? (
+                  <>
+                    <Link
+                      href={`/wallet/${selectedBuilding.login}`}
+                      className="btn-press flex-1 py-2 text-center text-[10px] text-bg"
+                      style={{
+                        backgroundColor: "#14F195",
+                        boxShadow: "2px 2px 0 0 #0a7a4a",
+                      }}
+                    >
+                      View Resident
+                    </Link>
+                    <a
+                      href={`https://solscan.io/account/${selectedBuilding.login}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-press flex-1 border-[2px] border-border py-2 text-center text-[10px] text-cream transition-colors hover:border-border-light"
+                    >
+                      Solscan
+                    </a>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href={`/${selectedBuilding.login}`}
+                      className="btn-press flex-1 py-2 text-center text-[10px] text-bg"
+                      style={{
+                        backgroundColor: theme.accent,
+                        boxShadow: `2px 2px 0 0 ${theme.shadow}`,
+                      }}
+                    >
+                      View Protocol
+                    </Link>
+                    <a
+                      href={`https://defillama.com/protocol/${selectedBuilding.login}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-press flex-1 border-[2px] border-border py-2 text-center text-[10px] text-cream transition-colors hover:border-border-light"
+                    >
+                      DeFiLlama
+                    </a>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -2768,11 +2818,15 @@ function HomeContent() {
           accentColor={theme.accent}
           onClaimHouse={async () => {
             if (!walletAuth.address) return;
-            await fetch("/api/resident/claim", {
+            const res = await fetch("/api/resident/claim", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ address: walletAuth.address }),
             });
+            if (res.ok) {
+              // Reload city so the new house appears in the ring
+              reloadCity(true);
+            }
           }}
           onProtocolClick={(slug) => {
             const building = buildings.find((b) => b.login === slug);
@@ -2782,7 +2836,9 @@ function HomeContent() {
               setExploreMode(true);
             }
           }}
-          claiming={false}
+          claiming={walletAuth.connecting}
+          houseColor={walletAuth.houseColor}
+          onColorChange={() => reloadCity(true)}
         />
       )}
     </main>

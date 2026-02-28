@@ -52,6 +52,31 @@ export async function fetchJupiterPrices(
   }
 }
 
+// ── Fetch raw prices by mint addresses (returns mint → USD price) ──
+export async function fetchMintPrices(mints: string[]): Promise<Record<string, number>> {
+  if (mints.length === 0) return {};
+  try {
+    const ids = mints.join(',');
+    const headers: Record<string, string> = {};
+    if (JUPITER_API_KEY) headers['x-api-key'] = JUPITER_API_KEY;
+
+    const res = await fetch(`${JUPITER_PRICE_API}?ids=${ids}`, { headers });
+    if (!res.ok) throw new Error(`Jupiter ${res.status}`);
+    const json = await res.json();
+
+    const priceByMint: Record<string, number> = {};
+    for (const [mint, data] of Object.entries(json)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const d = data as any;
+      if (d?.usdPrice) priceByMint[mint] = Number(d.usdPrice);
+    }
+    return priceByMint;
+  } catch (err) {
+    console.warn('Jupiter mint price fetch failed:', err);
+    return {};
+  }
+}
+
 // ── Top trending tokens (1h window) ──
 export interface TrendingToken {
   mint: string;

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { fetchMintPrices } from "@/lib/api/jupiter";
 
 // ═══════════════════════════════════════════════════
 // CRON: Sync protocol data (TVL, volumes, fees, prices)
@@ -7,6 +8,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 // ═══════════════════════════════════════════════════
 
 const CRON_SECRET = process.env.CRON_SECRET || "";
+const DEFILLAMA_BASE = process.env.NEXT_PUBLIC_DEFILLAMA_BASE || "https://api.llama.fi";
 
 // DeFiLlama category → Sol City category
 const CATEGORY_MAP: Record<string, string> = {
@@ -169,7 +171,7 @@ async function fetchVolumesAndFees(): Promise<{
   for (const endpoint of ["dexs", "derivatives"]) {
     try {
       const res = await fetch(
-        `https://api.llama.fi/overview/${endpoint}/solana`
+        `${DEFILLAMA_BASE}/overview/${endpoint}/solana`
       );
       if (!res.ok) continue;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -191,7 +193,7 @@ async function fetchVolumesAndFees(): Promise<{
 
   // Fees: covers lending, staking, yield, launchpads — much broader than volume
   try {
-    const res = await fetch("https://api.llama.fi/overview/fees/solana");
+    const res = await fetch(`${DEFILLAMA_BASE}/overview/fees/solana`);
     if (res.ok) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const data: any = await res.json();
@@ -211,32 +213,6 @@ async function fetchVolumesAndFees(): Promise<{
   }
 
   return { volumeMap, feesMap };
-}
-
-// Fetch Jupiter prices for known mints
-async function fetchJupiterPrices(): Promise<Record<string, number>> {
-  try {
-    const mints = Object.values(PARENT_MINTS).join(",");
-    const headers: Record<string, string> = {};
-    const key = process.env.NEXT_PUBLIC_JUPITER_API_KEY;
-    if (key) headers["x-api-key"] = key;
-
-    const res = await fetch(`https://api.jup.ag/price/v3?ids=${mints}`, {
-      headers,
-    });
-    if (!res.ok) throw new Error(`Jupiter ${res.status}`);
-    const json = await res.json();
-
-    const priceByMint: Record<string, number> = {};
-    for (const [mint, data] of Object.entries(json)) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const d = data as any;
-      if (d?.usdPrice) priceByMint[mint] = Number(d.usdPrice);
-    }
-    return priceByMint;
-  } catch {
-    return {};
-  }
 }
 
 // Fetch Vybe Network token volumes for known mints
@@ -282,12 +258,12 @@ export async function GET(request: Request) {
     // Fetch all external data in parallel
     const [protocolsRes, { volumeMap, feesMap }, priceByMint, vybeByMint] =
       await Promise.all([
-        fetch("https://api.llama.fi/protocols").then((r) => {
+        fetch(`${DEFILLAMA_BASE}/protocols`).then((r) => {
           if (!r.ok) throw new Error(`DeFiLlama ${r.status}`);
           return r.json();
         }),
         fetchVolumesAndFees(),
-        fetchJupiterPrices(),
+        fetchMintPrices(Object.values(PARENT_MINTS)),
         fetchVybeVolumes(),
       ]);
 

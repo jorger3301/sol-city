@@ -20,6 +20,7 @@ export interface WalletAuthState {
   address: string | null;
   isConnected: boolean;
   isResident: boolean;
+  houseColor: string | null;
   walletData: WalletData | null;
   interactedProtocols: ProtocolInteraction[];
   connecting: boolean;
@@ -38,6 +39,7 @@ export function useWalletAuth(): WalletAuthState {
 
   const [address, setAddress] = useState<string | null>(null);
   const [isResident, setIsResident] = useState(false);
+  const [houseColor, setHouseColor] = useState<string | null>(null);
   const [walletData, setWalletData] = useState<WalletData | null>(null);
   const [interactedProtocols, setInteractedProtocols] = useState<ProtocolInteraction[]>([]);
   const [connecting, setConnecting] = useState(false);
@@ -69,6 +71,7 @@ export function useWalletAuth(): WalletAuthState {
         const data = await res.json();
         if (data.resident) {
           setIsResident(true);
+          setHouseColor(data.resident.house_color ?? null);
           setInteractedProtocols(data.interactions ?? []);
         }
       }
@@ -194,6 +197,7 @@ export function useWalletAuth(): WalletAuthState {
     }
     setAddress(null);
     setIsResident(false);
+    setHouseColor(null);
     setWalletData(null);
     setInteractedProtocols([]);
   }, [walletDisconnect]);
@@ -202,6 +206,7 @@ export function useWalletAuth(): WalletAuthState {
     address,
     isConnected: !!address,
     isResident,
+    houseColor,
     walletData,
     interactedProtocols,
     connecting,

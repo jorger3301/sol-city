@@ -10,6 +10,11 @@ function formatPnl(value: number | null): string {
   return `${prefix}${Math.abs(value).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 }
 
+const HOUSE_COLORS = [
+  "#6090e0", "#14F195", "#f0c060", "#e040c0",
+  "#60c0f0", "#f85149", "#a78bfa", "#fb923c",
+];
+
 interface WalletHUDProps {
   walletAddress: string;
   walletData: WalletData | null;
@@ -19,6 +24,8 @@ interface WalletHUDProps {
   onClaimHouse: () => void;
   onProtocolClick: (slug: string) => void;
   claiming: boolean;
+  houseColor?: string | null;
+  onColorChange?: (color: string) => void;
 }
 
 export default function WalletHUD({
@@ -30,8 +37,11 @@ export default function WalletHUD({
   onClaimHouse,
   onProtocolClick,
   claiming,
+  houseColor,
+  onColorChange,
 }: WalletHUDProps) {
   const [expanded, setExpanded] = useState(false);
+  const [savingColor, setSavingColor] = useState(false);
 
   return (
     <div
@@ -96,6 +106,39 @@ export default function WalletHUD({
                 </span>
               )}
             </div>
+
+            {/* House color picker for residents */}
+            {isResident && onColorChange && (
+              <div className="mt-2">
+                <div className="text-[8px] text-muted mb-1">HOUSE COLOR</div>
+                <div className="flex gap-1.5">
+                  {HOUSE_COLORS.map((color) => (
+                    <button
+                      key={color}
+                      disabled={savingColor}
+                      onClick={async () => {
+                        setSavingColor(true);
+                        try {
+                          const res = await fetch("/api/resident/customize", {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ house_color: color }),
+                          });
+                          if (res.ok) onColorChange(color);
+                        } catch { /* ignore */ }
+                        setSavingColor(false);
+                      }}
+                      className="h-4 w-4 border transition-transform hover:scale-125 disabled:opacity-50"
+                      style={{
+                        backgroundColor: color,
+                        borderColor: (houseColor || "#6090e0") === color ? "#fff" : "transparent",
+                        borderWidth: (houseColor || "#6090e0") === color ? "2px" : "1px",
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
 
             {walletData && (
               <div className="mt-1.5 grid grid-cols-3 gap-2">

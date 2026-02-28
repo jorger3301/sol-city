@@ -51,8 +51,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      creator: "@samuelrizzondev",
-      site: "@samuelrizzondev",
     },
   };
 }
@@ -358,21 +356,6 @@ export default async function DevPage({ params }: Props) {
           </a>
         </div>
 
-        {/* Creator credit */}
-        <div className="mt-10 border-t border-border/50 pt-4 text-center">
-          <p className="text-[9px] text-muted normal-case">
-            built by{" "}
-            <a
-              href="https://x.com/samuelrizzondev"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="transition-colors hover:text-cream"
-              style={{ color: accent }}
-            >
-              @samuelrizzondev
-            </a>
-          </p>
-        </div>
       </div>
     </main>
   );

@@ -34,10 +34,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    creator: "@samuelrizzondev",
-    site: "@samuelrizzondev",
   },
-  authors: [{ name: "Samuel Rizzon", url: "https://x.com/samuelrizzondev" }],
   icons: {
     icon: "/favicon.ico",
     apple: "/apple-icon.png",
@@ -59,11 +56,6 @@ const jsonLd = {
   url: BASE_URL,
   applicationCategory: "DeveloperApplication",
   operatingSystem: "Web",
-  author: {
-    "@type": "Person",
-    name: "Samuel Rizzon",
-    url: "https://x.com/samuelrizzondev",
-  },
   offers: {
     "@type": "Offer",
     price: "0",

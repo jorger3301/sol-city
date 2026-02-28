@@ -6,7 +6,7 @@
 import type { Protocol } from './types';
 import { mapCategory } from './registry';
 
-const DEFILLAMA_BASE = 'https://api.llama.fi';
+const DEFILLAMA_BASE = process.env.NEXT_PUBLIC_DEFILLAMA_BASE || 'https://api.llama.fi';
 
 // ── Fetch all Solana protocols with $10K+ TVL ──
 export async function fetchProtocols(): Promise<Protocol[]> {

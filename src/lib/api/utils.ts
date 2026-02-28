@@ -31,8 +31,8 @@ export const explorerUrl = {
 // Fetch Solana TPS from RPC
 export async function fetchSolanaTps(): Promise<number> {
   const endpoints: string[] = [];
-  if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_HELIUS_API_KEY) {
-    endpoints.push(`https://mainnet.helius-rpc.com/?api-key=${process.env.NEXT_PUBLIC_HELIUS_API_KEY}`);
+  if (process.env.NEXT_PUBLIC_HELIUS_RPC_URL) {
+    endpoints.push(process.env.NEXT_PUBLIC_HELIUS_RPC_URL);
   }
   endpoints.push('https://api.mainnet-beta.solana.com');
 
