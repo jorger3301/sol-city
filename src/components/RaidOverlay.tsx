@@ -94,8 +94,8 @@ export default function RaidOverlay({ phase, raidData, onSkip, onExit }: Props) 
 
   if (!showBars && !showText && !showScore) return null;
 
-  const attackerLogin = raidData?.attacker?.login ?? "???";
-  const defenderLogin = raidData?.defender?.login ?? "???";
+  const attackerLogin = raidData?.attacker?.slug ?? "???";
+  const defenderLogin = raidData?.defender?.slug ?? "???";
   const isWin = raidData?.success;
 
   let phaseText = "";
@@ -213,7 +213,7 @@ export default function RaidOverlay({ phase, raidData, onSkip, onExit }: Props) 
                   <AnimatedScore target={raidData.attack_score} />
                 </p>
                 <div className="mt-1 space-y-0.5 text-[9px] text-muted/60">
-                  <p>{raidData.attack_breakdown.commits} commits</p>
+                  <p>{raidData.attack_breakdown.commits} activity</p>
                   <p>{raidData.attack_breakdown.streak} streak</p>
                   <p>{raidData.attack_breakdown.kudos} kudos</p>
                   {raidData.attack_breakdown.boost ? <p>{raidData.attack_breakdown.boost} boost</p> : null}
@@ -228,7 +228,7 @@ export default function RaidOverlay({ phase, raidData, onSkip, onExit }: Props) 
                   <AnimatedScore target={raidData.defense_score} />
                 </p>
                 <div className="mt-1 space-y-0.5 text-[9px] text-muted/60">
-                  <p>{raidData.defense_breakdown.commits} commits</p>
+                  <p>{raidData.defense_breakdown.commits} activity</p>
                   <p>{raidData.defense_breakdown.streak} streak</p>
                   <p>{raidData.defense_breakdown.kudos} kudos</p>
                 </div>

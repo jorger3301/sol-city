@@ -123,7 +123,7 @@ export function AdPurchaseForm() {
           <div className="mb-2 flex items-center justify-between">
             <p className="text-[10px] text-muted normal-case">Format</p>
             <p className="text-[9px] text-dim normal-case">
-              {isSky ? "flies across the entire city skyline" : "mounted on the tallest buildings (top contributors)"}
+              {isSky ? "flies across the entire city skyline" : "mounted on the tallest buildings (top protocols)"}
             </p>
           </div>
           <div className="flex gap-1.5">

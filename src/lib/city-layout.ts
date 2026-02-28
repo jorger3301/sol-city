@@ -49,14 +49,14 @@ export interface TopRepo {
 }
 
 export interface CityBuilding {
-  login: string;
+  slug: string;
   rank: number;
-  contributions: number;
-  total_stars: number;
-  public_repos: number;
+  tvl: number;
+  volume: number;
+  tier: number;
   name: string | null;
-  avatar_url: string | null;
-  primary_language: string | null;
+  logoUrl: string | null;
+  category: string | null;
   claimed: boolean;
   claimed_by?: string | null;
   owned_items: string[];
@@ -68,7 +68,7 @@ export interface CityBuilding {
   loadout?: { crown: string | null; roof: string | null; aura: string | null } | null;
   app_streak: number;
   raid_xp: number;
-  current_week_contributions: number;
+  weeklyActivity: number;
   current_week_kudos_given: number;
   current_week_kudos_received: number;
   active_raid_tag?: { attacker_login: string; tag_style: string; expires_at: string } | null;
@@ -398,14 +398,14 @@ export function generateCityLayout(devs: DeveloperRecord[]): {
       const sideWindowsPerFloor = Math.max(3, Math.floor(d / 5));
 
       buildings.push({
-        login: dev.github_login,
+        slug: dev.github_login,
         rank: dev.rank ?? devIndex + i + 1,
-        contributions: (dev.contributions_total && dev.contributions_total > 0) ? dev.contributions_total : dev.contributions,
-        total_stars: dev.total_stars,
-        public_repos: dev.public_repos,
+        tvl: (dev.contributions_total && dev.contributions_total > 0) ? dev.contributions_total : dev.contributions,
+        volume: dev.total_stars,
+        tier: dev.public_repos,
         name: dev.name,
-        avatar_url: dev.avatar_url,
-        primary_language: dev.primary_language,
+        logoUrl: dev.avatar_url,
+        category: dev.primary_language,
         claimed: dev.claimed ?? false,
         owned_items: dev.owned_items ?? [],
         custom_color: dev.custom_color ?? null,
@@ -416,7 +416,7 @@ export function generateCityLayout(devs: DeveloperRecord[]): {
         loadout: (dev as unknown as Record<string, unknown>).loadout as CityBuilding["loadout"] ?? null,
         app_streak: (dev as unknown as Record<string, unknown>).app_streak as number ?? 0,
         raid_xp: (dev as unknown as Record<string, unknown>).raid_xp as number ?? 0,
-        current_week_contributions: (dev as unknown as Record<string, unknown>).current_week_contributions as number ?? 0,
+        weeklyActivity: (dev as unknown as Record<string, unknown>).current_week_contributions as number ?? 0,
         current_week_kudos_given: (dev as unknown as Record<string, unknown>).current_week_kudos_given as number ?? 0,
         current_week_kudos_received: (dev as unknown as Record<string, unknown>).current_week_kudos_received as number ?? 0,
         active_raid_tag: (dev as unknown as Record<string, unknown>).active_raid_tag as CityBuilding["active_raid_tag"] ?? null,
@@ -827,16 +827,14 @@ export function generateProtocolCityLayout(protocols: ProtocolRecord[]): {
       const district = getDistrict(proto.category);
 
       buildings.push({
-        // Backward-compatible fields: login = slug (all rendering components use .login)
-        login: proto.slug,
+        slug: proto.slug,
         rank: proto.rank ?? protoIndex + i + 1,
-        // Map protocol data into existing CityBuilding fields for display
-        contributions: proto.tvl,
-        total_stars: proto.volume_24h ?? proto.volume24h ?? 0,
-        public_repos: proto.rank ?? protoIndex + i + 1,
+        tvl: proto.tvl,
+        volume: proto.volume_24h ?? proto.volume24h ?? 0,
+        tier: proto.rank ?? protoIndex + i + 1,
         name: proto.name,
-        avatar_url: proto.logo_url ?? proto.logoUrl ?? null,
-        primary_language: `${proto.category} | ${district.name}`,
+        logoUrl: proto.logo_url ?? proto.logoUrl ?? null,
+        category: `${proto.category} | ${district.name}`,
         // Gamification fields (from Supabase joins or defaults)
         claimed: proto.claimed ?? false,
         claimed_by: proto.claimed_by ?? null,
@@ -849,7 +847,7 @@ export function generateProtocolCityLayout(protocols: ProtocolRecord[]): {
         loadout: proto.loadout ?? null,
         app_streak: proto.app_streak ?? 0,
         raid_xp: proto.raid_xp ?? 0,
-        current_week_contributions: proto.current_week_contributions ?? 0,
+        weeklyActivity: proto.current_week_contributions ?? 0,
         current_week_kudos_given: proto.current_week_kudos_given ?? 0,
         current_week_kudos_received: proto.current_week_kudos_received ?? 0,
         active_raid_tag: proto.active_raid_tag ?? null,
@@ -901,7 +899,7 @@ export function generateProtocolCityLayout(protocols: ProtocolRecord[]): {
 
     for (let bi = 0; bi < blockProtos.length; bi++) {
       const bld = buildings[buildings.length - blockProtos.length + bi];
-      const carSeed = hashStr(bld.login) + 777;
+      const carSeed = hashStr(bld.slug) + 777;
       if (seededRandom(carSeed) > 0.6) {
         const side = seededRandom(carSeed + 1) > 0.5 ? 1 : -1;
         const carX = bld.position[0] + side * (bld.width / 2 + 6);
@@ -1123,14 +1121,14 @@ export function placeResidentHouses(
     const floors = Math.max(2, Math.floor(height / 8));
 
     houses.push({
-      login: r.wallet_address,
+      slug: r.wallet_address,
       rank: 0,
-      contributions: 0,
-      total_stars: 0,
-      public_repos: 0,
+      tvl: 0,
+      volume: 0,
+      tier: 0,
       name: r.display_name || `Resident ${r.wallet_address.slice(0, 4)}...${r.wallet_address.slice(-4)}`,
-      avatar_url: null,
-      primary_language: 'Resident',
+      logoUrl: null,
+      category: 'Resident',
       claimed: true,
       claimed_by: r.wallet_address,
       owned_items: [],
@@ -1142,7 +1140,7 @@ export function placeResidentHouses(
       loadout: null,
       app_streak: 0,
       raid_xp: 0,
-      current_week_contributions: 0,
+      weeklyActivity: 0,
       current_week_kudos_given: 0,
       current_week_kudos_received: 0,
       active_raid_tag: null,

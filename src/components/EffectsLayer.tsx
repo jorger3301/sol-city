@@ -77,7 +77,7 @@ export default function EffectsLayer({
   const loginToIdx = useMemo(() => {
     const map = new Map<string, number>();
     for (let i = 0; i < buildings.length; i++) {
-      map.set(buildings[i].login.toLowerCase(), i);
+      map.set(buildings[i].slug.toLowerCase(), i);
     }
     return map;
   }, [buildings]);
@@ -160,13 +160,13 @@ export default function EffectsLayer({
       {activeIndices.map((idx) => {
         const b = buildings[idx];
         if (!b) return null;
-        const loginLower = b.login.toLowerCase();
+        const loginLower = b.slug.toLowerCase();
         if (hideLower === loginLower) return null;
         const isFocused = focusedLower === loginLower || focusedBLower === loginLower;
         const isDimmed = !!focusedLower && !isFocused;
         const isGhostTarget = ghostLower === loginLower;
         return (
-          <group key={b.login} position={[b.position[0], 0, b.position[2]]} visible={!isDimmed}>
+          <group key={b.slug} position={[b.position[0], 0, b.position[2]]} visible={!isDimmed}>
             {b.claimed && (
               <ClaimedGlow height={b.height} width={b.width} depth={b.depth} />
             )}

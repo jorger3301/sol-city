@@ -212,9 +212,9 @@ function createFarLabel(building: CityBuilding): THREE.CanvasTexture {
   canvas.height = H;
   const ctx = canvas.getContext("2d")!;
 
-  const login = building.login.length > 16
-    ? building.login.slice(0, 16).toUpperCase() + "..."
-    : building.login.toUpperCase();
+  const login = building.slug.length > 16
+    ? building.slug.slice(0, 16).toUpperCase() + "..."
+    : building.slug.toUpperCase();
   const text = `@${login}`;
 
   ctx.font = 'bold 40px "Silkscreen", monospace';
@@ -476,7 +476,7 @@ export default function Building3D({ building, colors, atlasTexture, introMode, 
 
   const textures = useMemo(() => {
     const seed =
-      building.login.split("").reduce((a, c) => a + c.charCodeAt(0), 0) * 137;
+      building.slug.split("").reduce((a, c) => a + c.charCodeAt(0), 0) * 137;
 
     // Custom color buildings: per-building canvas textures (rare, <5%)
     // Blend custom color 50% with theme face color to prevent glaring brightness

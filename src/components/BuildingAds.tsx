@@ -380,7 +380,7 @@ export default function BuildingAds({ ads, buildings, onAdClick, onAdViewed, foc
       {billboardAds.map((ad, i) => {
         const building = top10[i];
         if (!building) return null;
-        const loginLower = building.login.toLowerCase();
+        const loginLower = building.slug.toLowerCase();
         const isDimmed = !!focusedLower && loginLower !== focusedLower && loginLower !== focusedBLower;
         return (
           <group key={ad.id} visible={!isDimmed}>
@@ -399,7 +399,7 @@ export default function BuildingAds({ ads, buildings, onAdClick, onAdViewed, foc
       {rooftopSignAds.map((ad, i) => {
         const building = top10[i];
         if (!building) return null;
-        const loginLower = building.login.toLowerCase();
+        const loginLower = building.slug.toLowerCase();
         const isDimmed = !!focusedLower && loginLower !== focusedLower && loginLower !== focusedBLower;
         return (
           <group key={ad.id} visible={!isDimmed}>
@@ -418,7 +418,7 @@ export default function BuildingAds({ ads, buildings, onAdClick, onAdViewed, foc
       {ledWrapAds.map((ad, i) => {
         const building = top10[i];
         if (!building) return null;
-        const loginLower = building.login.toLowerCase();
+        const loginLower = building.slug.toLowerCase();
         const isDimmed = !!focusedLower && loginLower !== focusedLower && loginLower !== focusedBLower;
         return (
           <group key={ad.id} visible={!isDimmed}>

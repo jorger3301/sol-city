@@ -141,8 +141,8 @@ export function useRaidSequence(): [RaidState, RaidActions] {
       setState((prev) => ({ ...prev, loading: true, error: null }));
 
       // Find buildings for position data
-      const attackerBuilding = buildings.find((b) => b.login === myLogin) ?? null;
-      const defenderBuilding = buildings.find((b) => b.login === targetLogin) ?? null;
+      const attackerBuilding = buildings.find((b) => b.slug === myLogin) ?? null;
+      const defenderBuilding = buildings.find((b) => b.slug === targetLogin) ?? null;
 
       try {
         const res = await fetch("/api/raid/preview", {

@@ -107,9 +107,9 @@ export interface RaidPreviewResponse {
   defense_score: number;
   attack_breakdown: ScoreBreakdown;
   defense_breakdown: ScoreBreakdown;
-  attacker_login: string;
+  attacker_slug: string;
   attacker_avatar: string | null;
-  defender_login: string;
+  defender_slug: string;
   defender_avatar: string | null;
   defender_building_height: number;
   available_boosts: RaidBoostItem[];
@@ -132,13 +132,13 @@ export interface RaidExecuteResponse {
   attack_breakdown: ScoreBreakdown;
   defense_breakdown: ScoreBreakdown;
   attacker: {
-    login: string;
+    slug: string;
     avatar: string | null;
     position: [number, number, number];
     height: number;
   };
   defender: {
-    login: string;
+    slug: string;
     avatar: string | null;
     position: [number, number, number];
     height: number;

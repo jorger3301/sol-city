@@ -420,7 +420,7 @@ function CameraFocus({
     }
 
     const bA = buildingsRef.current.find(
-      (b) => b.login.toLowerCase() === focusedBuilding.toLowerCase()
+      (b) => b.slug.toLowerCase() === focusedBuilding.toLowerCase()
     );
     if (!bA) return;
 
@@ -432,7 +432,7 @@ function CameraFocus({
 
     // Dual focus: compute midpoint + separation-based backoff
     const bB = focusedBuildingB
-      ? buildingsRef.current.find((b) => b.login.toLowerCase() === focusedBuildingB.toLowerCase())
+      ? buildingsRef.current.find((b) => b.slug.toLowerCase() === focusedBuildingB.toLowerCase())
       : null;
 
     if (bB) {
@@ -1624,9 +1624,9 @@ export default function CityCanvas({ buildings, plazas, decorations, river, brid
       <CityScene
         buildings={buildings}
         colors={t.building}
-        focusedBuilding={raidPhase && raidPhase !== "idle" && raidPhase !== "preview" && raidPhase !== "share" && raidPhase !== "done" ? (raidDefender?.login ?? focusedBuilding) : focusedBuilding}
-        focusedBuildingB={raidPhase && raidPhase !== "idle" && raidPhase !== "preview" && raidPhase !== "share" && raidPhase !== "done" ? (raidAttacker?.login ?? null) : focusedBuildingB}
-        hideEffectsFor={raidPhase && raidPhase !== "idle" && raidPhase !== "preview" && raidPhase !== "share" && raidPhase !== "done" ? (raidAttacker?.login ?? null) : null}
+        focusedBuilding={raidPhase && raidPhase !== "idle" && raidPhase !== "preview" && raidPhase !== "share" && raidPhase !== "done" ? (raidDefender?.slug ?? focusedBuilding) : focusedBuilding}
+        focusedBuildingB={raidPhase && raidPhase !== "idle" && raidPhase !== "preview" && raidPhase !== "share" && raidPhase !== "done" ? (raidAttacker?.slug ?? null) : focusedBuildingB}
+        hideEffectsFor={raidPhase && raidPhase !== "idle" && raidPhase !== "preview" && raidPhase !== "share" && raidPhase !== "done" ? (raidAttacker?.slug ?? null) : null}
         accentColor={t.building.accent}
         onBuildingClick={onBuildingClick}
         onFocusInfo={onFocusInfo}
@@ -1645,8 +1645,8 @@ export default function CityCanvas({ buildings, plazas, decorations, river, brid
             buildings={buildings}
             onAdClick={onAdClick}
             onAdViewed={onAdViewed}
-            focusedBuilding={raidPhase && raidPhase !== "idle" && raidPhase !== "preview" && raidPhase !== "share" && raidPhase !== "done" ? (raidDefender?.login ?? focusedBuilding) : focusedBuilding}
-            focusedBuildingB={raidPhase && raidPhase !== "idle" && raidPhase !== "preview" && raidPhase !== "share" && raidPhase !== "done" ? (raidAttacker?.login ?? null) : focusedBuildingB}
+            focusedBuilding={raidPhase && raidPhase !== "idle" && raidPhase !== "preview" && raidPhase !== "share" && raidPhase !== "done" ? (raidDefender?.slug ?? focusedBuilding) : focusedBuilding}
+            focusedBuildingB={raidPhase && raidPhase !== "idle" && raidPhase !== "preview" && raidPhase !== "share" && raidPhase !== "done" ? (raidAttacker?.slug ?? null) : focusedBuildingB}
           />
         </>
       )}

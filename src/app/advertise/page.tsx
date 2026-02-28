@@ -159,7 +159,7 @@ export default async function AdvertisePage() {
               {[
                 {
                   q: "How many people will see my ad?",
-                  a: `The city has ${devCount.toLocaleString()}+ developer buildings and growing. Building ads are placed on the tallest towers, which are the first thing visitors see. Sky ads fly across the entire skyline. Every visitor who explores the city sees your ad.`,
+                  a: `The city has ${devCount.toLocaleString()}+ protocol buildings and growing. Building ads are placed on the tallest towers, which are the first thing visitors see. Sky ads fly across the entire skyline. Every visitor who explores the city sees your ad.`,
                 },
                 {
                   q: "What formats are available?",

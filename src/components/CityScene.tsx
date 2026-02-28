@@ -54,7 +54,7 @@ interface BuildingLookup {
 function buildLookup(buildings: CityBuilding[]): BuildingLookup {
   const indexByLogin = new Map<string, number>();
   for (let i = 0; i < buildings.length; i++) {
-    indexByLogin.set(buildings[i].login.toLowerCase(), i);
+    indexByLogin.set(buildings[i].slug.toLowerCase(), i);
   }
   return { indexByLogin };
 }

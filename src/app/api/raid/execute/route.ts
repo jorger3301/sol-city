@@ -338,13 +338,13 @@ export async function POST(request: Request) {
       attack_breakdown: attack.breakdown,
       defense_breakdown: defense.breakdown,
       attacker: {
-        login: attacker.github_login,
+        slug: attacker.github_login,
         avatar: attacker.avatar_url,
         position: [0, 0, 0] as [number, number, number],
         height: Math.max(20, Math.min(300, (attacker.contributions ?? 0) * 0.15)),
       },
       defender: {
-        login: defender.github_login,
+        slug: defender.github_login,
         avatar: defender.avatar_url,
         position: [0, 0, 0] as [number, number, number],
         height: Math.max(20, Math.min(300, (defender.contributions ?? 0) * 0.15)),

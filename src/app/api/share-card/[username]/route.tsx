@@ -36,21 +36,21 @@ const i18n: Record<Lang, {
 }> = {
   en: {
     inTheCity: "in the city",
-    commits: "COMMITS",
-    repos: "REPOS",
-    stars: "STARS",
+    commits: "TVL",
+    repos: "TIER",
+    stars: "VOLUME",
     kudos: "KUDOS",
     cta: "Can you beat this?",
-    notFound: "Developer not found",
+    notFound: "Protocol not found",
   },
   pt: {
     inTheCity: "na cidade",
-    commits: "COMMITS",
-    repos: "REPOS",
-    stars: "ESTRELAS",
+    commits: "TVL",
+    repos: "TIER",
+    stars: "VOLUME",
     kudos: "KUDOS",
     cta: "Consegue me superar?",
-    notFound: "Desenvolvedor nao encontrado",
+    notFound: "Protocolo nao encontrado",
   },
 };
 
@@ -506,7 +506,7 @@ const TAUNTS: Record<Lang, { rank: [number, string][]; contribs: [number, string
     contribs: [
       [5000, "I DON'T TOUCH GRASS. I PUSH CODE."],
       [2000, "YOUR BUILDING FITS IN MY LOBBY"],
-      [1000, "MY COMMITS HAVE COMMITS"],
+      [1000, "MY TVL HAS ITS OWN TVL"],
       [500, "TALLER THAN YOUR ATTENTION SPAN"],
       [200, "SMALL BUILDING, BIG ENERGY"],
       [50, "EVERY SKYSCRAPER STARTS SOMEWHERE"],
@@ -526,7 +526,7 @@ const TAUNTS: Record<Lang, { rank: [number, string][]; contribs: [number, string
     contribs: [
       [5000, "EU NAO TOCO GRAMA. EU FAÇO PUSH."],
       [2000, "SEU PRÉDIO CABE NO MEU LOBBY"],
-      [1000, "MEUS COMMITS TEM COMMITS"],
+      [1000, "MEU TVL TEM TVL PROPRIO"],
       [500, "MAIS ALTO QUE SUA PACIÊNCIA"],
       [200, "PRÉDIO PEQUENO, ENERGIA GRANDE"],
       [50, "TODO ARRANHA-CEU COMEÇA EM ALGUM LUGAR"],

@@ -25,24 +25,21 @@ export async function GET(request: Request) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const protocols = (protocolsResult.data ?? []) as Record<string, any>[];
 
+  const raw = statsResult.data;
+  const stats = {
+    total_protocols: raw?.total_developers ?? 0,
+    total_tvl: raw?.total_contributions ?? 0,
+  };
+
   if (protocols.length === 0) {
     return NextResponse.json(
-      {
-        protocols: [],
-        stats: statsResult.data ?? { total_developers: 0, total_contributions: 0 },
-      },
+      { protocols: [], stats },
       { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } }
     );
   }
 
   return NextResponse.json(
-    {
-      protocols,
-      stats: statsResult.data ?? {
-        total_developers: 0,
-        total_contributions: 0,
-      },
-    },
+    { protocols, stats },
     {
       headers: {
         "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",

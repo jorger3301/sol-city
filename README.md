@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="public/og-image.png" alt="Sol City — Where Protocols Build Cities" width="800" />
+  <img src="public/og-image.png" alt="Sol City — Solana Protocols as a 3D City" width="800" />
 </p>
 
 ---
@@ -20,11 +20,12 @@ Sol City transforms every Solana protocol into a unique pixel art building. The 
 - **Free Flight Mode** — Fly through the city with smooth camera controls, visit any building, and explore the skyline
 - **Protocol Pages** — Dedicated pages for each protocol with TVL, volume, fees, token price, and category
 - **Wallet Integration** — Connect your Solana wallet to see your portfolio, token holdings, and transaction history
-- **Resident System** — Claim a house in Sol City to save your progress and appear on the leaderboard
-- **Leaderboard** — Multiple tabs: TVL, Volume 24h, Rank, Achievers, Top Traders (by PnL), and Residents
+- **Resident System** — Claim a house in Sol City, customize its color, and appear on the leaderboard
+- **Shop** — Customize your resident house color and profile from the Sol City shop
+- **Leaderboard** — Multiple tabs: TVL, Volume 24h, Fees 24h, 24h Change, and Residents (PnL ranking)
 - **Trading Stats** — PnL, win rate, trade count, and best/worst performing tokens via Vybe Network
 - **Protocol Detection** — Automatically detects which Solana protocols your wallet has interacted with via Helius
-- **Achievement System** — Unlock achievements based on protocol activity and contributions
+- **Achievement System** — Unlock achievements based on on-chain activity and engagement
 
 ## How Buildings Work
 
@@ -101,7 +102,8 @@ Open [http://localhost:3000](http://localhost:3000) to see the city.
 | `PUT /api/resident/claim` | Refresh protocol interactions |
 | `GET /api/top-traders` | Resident traders ranked by PnL |
 | `GET /api/residents` | All Sol City residents |
-| `GET /api/leaderboard` | Leaderboard page (SSR) |
+| `PATCH /api/resident/customize` | Update house color (requires wallet auth) |
+| `GET /api/trending` | Trending protocols |
 
 ## License
 

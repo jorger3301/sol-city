@@ -201,7 +201,7 @@ export default memo(function InstancedBuildings({
   const loginToIdx = useMemo(() => {
     const map = new Map<string, number>();
     for (let i = 0; i < buildings.length; i++) {
-      map.set(buildings[i].login.toLowerCase(), i);
+      map.set(buildings[i].slug.toLowerCase(), i);
     }
     return map;
   }, [buildings]);
@@ -248,7 +248,7 @@ export default memo(function InstancedBuildings({
 
     for (let i = 0; i < count; i++) {
       const b = buildings[i];
-      const seed = b.login.split("").reduce((a, c) => a + c.charCodeAt(0), 0) * 137;
+      const seed = b.slug.split("").reduce((a, c) => a + c.charCodeAt(0), 0) * 137;
 
       const bandIndex = Math.min(5, Math.max(0, Math.round(b.litPercentage * 5)));
       const bandRowOffset = bandIndex * ATLAS_BAND_ROWS;

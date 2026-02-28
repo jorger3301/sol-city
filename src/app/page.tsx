@@ -137,8 +137,8 @@ function fmtUsd(val: number): string {
 }
 
 interface CityStats {
-  total_developers: number;
-  total_contributions: number;
+  total_protocols: number;
+  total_tvl: number;
 }
 
 // ─── Loading phases for search feedback ─────────────────────
@@ -266,9 +266,9 @@ function SearchFeedback({
 }
 
 const LEADERBOARD_CATEGORIES = [
-  { label: "Contributors", key: "contributions" as const, tab: "contributors" },
-  { label: "Stars", key: "total_stars" as const, tab: "stars" },
-  { label: "Repos", key: "public_repos" as const, tab: "architects" },
+  { label: "TVL", key: "tvl" as const, tab: "tvl" },
+  { label: "Volume", key: "volume" as const, tab: "volume" },
+  { label: "Protocols", key: "tier" as const, tab: "tvl" },
 ] as const;
 
 function MiniLeaderboard({ buildings, accent }: { buildings: CityBuilding[]; accent: string }) {
@@ -308,8 +308,8 @@ function MiniLeaderboard({ buildings, accent }: { buildings: CityBuilding[]; acc
       <div className="border-[2px] border-border bg-bg-raised/80 backdrop-blur-sm">
         {sorted.map((b, i) => (
           <a
-            key={b.login}
-            href={`/${b.login}`}
+            key={b.slug}
+            href={`/${b.slug}`}
             className="flex items-center justify-between px-3 py-1.5 transition-colors hover:bg-bg-card"
           >
             <span className="flex items-center gap-2 overflow-hidden">
@@ -326,7 +326,7 @@ function MiniLeaderboard({ buildings, accent }: { buildings: CityBuilding[]; acc
                 #{i + 1}
               </span>
               <span className="truncate text-[10px] text-cream normal-case">
-                {b.login}
+                {b.slug}
               </span>
             </span>
             <span className="ml-2 flex-shrink-0 text-[10px] text-muted">
@@ -368,13 +368,13 @@ function HomeContent() {
   const [hud, setHud] = useState({ speed: 0, altitude: 0 });
   const [flyPaused, setFlyPaused] = useState(false);
   const [flyPauseSignal, setFlyPauseSignal] = useState(0);
-  const [stats, setStats] = useState<CityStats>({ total_developers: 0, total_contributions: 0 });
+  const [stats, setStats] = useState<CityStats>({ total_protocols: 0, total_tvl: 0 });
   const [focusedBuilding, setFocusedBuilding] = useState<string | null>(null);
   const [shareData, setShareData] = useState<{
-    login: string;
-    contributions: number;
+    slug: string;
+    tvl: number;
     rank: number | null;
-    avatar_url: string | null;
+    logoUrl: string | null;
   } | null>(null);
   const [copied, setCopied] = useState(false);
   const walletAuth = useWalletAuth();
@@ -425,8 +425,8 @@ function HomeContent() {
   useEffect(() => {
     if (raidState.raidData?.success && raidState.defenderBuilding) {
       lastSuccessfulRaidRef.current = {
-        defenderLogin: raidState.defenderBuilding.login,
-        attackerLogin: raidState.raidData.attacker.login,
+        defenderLogin: raidState.defenderBuilding.slug,
+        attackerLogin: raidState.raidData.attacker.slug,
         tagStyle: raidState.raidData.tag_style,
       };
     }
@@ -442,7 +442,7 @@ function HomeContent() {
       lastSuccessfulRaidRef.current = null;
       setBuildings((prev) =>
         prev.map((b) =>
-          b.login === defenderLogin
+          b.slug === defenderLogin
             ? {
                 ...b,
                 active_raid_tag: {
@@ -466,7 +466,7 @@ function HomeContent() {
   }, []);
 
   // Derived — second focused building for dual-focus camera
-  const focusedBuildingB = comparePair ? comparePair[1].login : null;
+  const focusedBuildingB = comparePair ? comparePair[1].slug : null;
 
   const [isMobile, setIsMobile] = useState(false);
 
@@ -522,15 +522,15 @@ function HomeContent() {
 
   // Visit tracking: fire visit POST after 3s of profile card open
   useEffect(() => {
-    if (selectedBuilding && walletAuth.isConnected && selectedBuilding.login.toLowerCase() !== authLogin) {
+    if (selectedBuilding && walletAuth.isConnected && selectedBuilding.slug.toLowerCase() !== authLogin) {
       visitTimerRef.current = setTimeout(async () => {
         try {
-          const building = buildings.find(b => b.login === selectedBuilding.login);
+          const building = buildings.find(b => b.slug === selectedBuilding.slug);
           if (!building) return;
           await fetch("/api/interactions/visit", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ building_login: selectedBuilding.login }),
+            body: JSON.stringify({ building_login: selectedBuilding.slug }),
           });
         } catch { /* ignore */ }
       }, 3000);
@@ -543,24 +543,24 @@ function HomeContent() {
   // Kudos handler
   const handleGiveKudos = useCallback(async () => {
     if (!selectedBuilding || kudosSending || kudosSent || !walletAuth.isConnected) return;
-    if (selectedBuilding.login.toLowerCase() === authLogin) return;
+    if (selectedBuilding.slug.toLowerCase() === authLogin) return;
     setKudosSending(true);
     setKudosError(null);
     try {
       const res = await fetch("/api/interactions/kudos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ receiver_login: selectedBuilding.login }),
+        body: JSON.stringify({ receiver_login: selectedBuilding.slug }),
       });
       if (res.ok) {
-        trackKudosSent(selectedBuilding.login);
+        trackKudosSent(selectedBuilding.slug);
         setKudosSent(true);
         // Increment kudos_count locally
         const newCount = (selectedBuilding.kudos_count ?? 0) + 1;
         setSelectedBuilding({ ...selectedBuilding, kudos_count: newCount });
         setBuildings((prev) =>
           prev.map((b) =>
-            b.login === selectedBuilding.login ? { ...b, kudos_count: newCount } : b
+            b.slug === selectedBuilding.slug ? { ...b, kudos_count: newCount } : b
           )
         );
         setTimeout(() => setKudosSent(false), 3000);
@@ -603,7 +603,7 @@ function HomeContent() {
         body: JSON.stringify({
           item_id: itemId,
           provider: "stripe",
-          gifted_to_login: selectedBuilding.login,
+          gifted_to_login: selectedBuilding.slug,
         }),
       });
       const data = await res.json();
@@ -655,13 +655,13 @@ function HomeContent() {
           if (comparePair) {
             // Return to building A's profile card
             setSelectedBuilding(comparePair[0]);
-            setFocusedBuilding(comparePair[0].login);
+            setFocusedBuilding(comparePair[0].slug);
             setComparePair(null);
             setCompareBuilding(null);
           } else if (compareBuilding) {
             // Cancel pick, restore profile card of first building
             setSelectedBuilding(compareBuilding);
-            setFocusedBuilding(compareBuilding.login);
+            setFocusedBuilding(compareBuilding.slug);
             setCompareBuilding(null);
           } else if (giftModalOpen) { setGiftModalOpen(false); setGiftItems(null); }
           else if (shareData) { setShareData(null); setSelectedBuilding(null); setFocusedBuilding(null); }
@@ -771,7 +771,7 @@ function HomeContent() {
     setRiver(layout.river);
     setBridges(layout.bridges);
 
-    const total = data.stats?.total_developers ?? 0;
+    const total = data.stats?.total_protocols ?? 0;
     if (total <= CHUNK) return [...layout.buildings, ...houses];
 
     // Fetch remaining chunks in parallel
@@ -879,7 +879,7 @@ function HomeContent() {
     if (!userParam || giftedParam || buildings.length === 0) return;
 
     const found = buildings.find(
-      (b) => b.login.toLowerCase() === userParam.toLowerCase()
+      (b) => b.slug.toLowerCase() === userParam.toLowerCase()
     );
     if (!found) return; // Not loaded yet, wait for next chunk
 
@@ -892,7 +892,7 @@ function HomeContent() {
     } else {
       // Buildings array was replaced (full layout loaded) — keep selectedBuilding in sync
       setSelectedBuilding(prev =>
-        prev && prev.login.toLowerCase() === userParam.toLowerCase() ? found : prev
+        prev && prev.slug.toLowerCase() === userParam.toLowerCase() ? found : prev
       );
     }
   }, [userParam, giftedParam, buildings]);
@@ -905,13 +905,13 @@ function HomeContent() {
     const parts = compareParam.split(",").map(s => s.trim().toLowerCase());
     if (parts.length !== 2 || parts[0] === parts[1]) return;
 
-    const bA = buildings.find(b => b.login.toLowerCase() === parts[0]);
-    const bB = buildings.find(b => b.login.toLowerCase() === parts[1]);
+    const bA = buildings.find(b => b.slug.toLowerCase() === parts[0]);
+    const bB = buildings.find(b => b.slug.toLowerCase() === parts[1]);
 
     if (bA && bB) {
       didHandleCompareParam.current = true;
       setComparePair([bA, bB]);
-      setFocusedBuilding(bA.login);
+      setFocusedBuilding(bA.slug);
       setExploreMode(true);
       return;
     }
@@ -925,11 +925,11 @@ function HomeContent() {
       );
       const updated = await reloadCity(true);
       if (!updated) return;
-      const foundA = updated.find((b: CityBuilding) => b.login.toLowerCase() === parts[0]);
-      const foundB = updated.find((b: CityBuilding) => b.login.toLowerCase() === parts[1]);
+      const foundA = updated.find((b: CityBuilding) => b.slug.toLowerCase() === parts[0]);
+      const foundB = updated.find((b: CityBuilding) => b.slug.toLowerCase() === parts[1]);
       if (foundA && foundB) {
         setComparePair([foundA, foundB]);
-        setFocusedBuilding(foundA.login);
+        setFocusedBuilding(foundA.slug);
         setExploreMode(true);
       }
     })();
@@ -959,7 +959,7 @@ function HomeContent() {
       // Focus on receiver's building
       setFocusedBuilding(userParam);
       const found = buildings.find(
-        (b) => b.login.toLowerCase() === userParam.toLowerCase()
+        (b) => b.slug.toLowerCase() === userParam.toLowerCase()
       );
       if (found) {
         setSelectedBuilding(found);
@@ -994,7 +994,7 @@ function HomeContent() {
 
     try {
       // Self-compare guard
-      if (wasComparing && trimmed === wasComparing.login.toLowerCase()) {
+      if (wasComparing && trimmed === wasComparing.slug.toLowerCase()) {
         setCompareSelfHint(true);
         setTimeout(() => setCompareSelfHint(false), 2000);
         setFeedback(null);
@@ -1003,7 +1003,7 @@ function HomeContent() {
 
       // Check if dev already exists in the city before the fetch
       const existedBefore = buildings.some(
-        (b) => b.login.toLowerCase() === trimmed
+        (b) => b.slug.toLowerCase() === trimmed
       );
 
       // Add/refresh the developer
@@ -1048,7 +1048,7 @@ function HomeContent() {
 
       // Find the building in the updated city
       const foundBuilding = updatedBuildings?.find(
-        (b: CityBuilding) => b.login.toLowerCase() === trimmed
+        (b: CityBuilding) => b.slug.toLowerCase() === trimmed
       );
 
       // Compare pick mode: use snapshot so ESC mid-search doesn't cause stale state
@@ -1056,7 +1056,7 @@ function HomeContent() {
         // Only complete if compare mode is still active (not cancelled by ESC)
         if (compareBuilding) {
           setComparePair([wasComparing, foundBuilding]);
-          setFocusedBuilding(wasComparing.login);
+          setFocusedBuilding(wasComparing.slug);
         } else {
           // Compare was cancelled during search — fall through to normal
           if (foundBuilding) {
@@ -1067,10 +1067,10 @@ function HomeContent() {
       } else if (!existedBefore) {
         // New developer: show the share modal
         setShareData({
-          login: devData.github_login,
-          contributions: devData.contributions,
+          slug: devData.github_login,
+          tvl: devData.tvl,
           rank: devData.rank,
-          avatar_url: devData.avatar_url,
+          logoUrl: devData.logoUrl,
         });
         if (foundBuilding) setSelectedBuilding(foundBuilding);
         setCopied(false);
@@ -1167,7 +1167,7 @@ function HomeContent() {
         onRabbitCinematicEnd={endRabbitCinematic}
         rabbitCinematicTarget={rabbitSighting ?? undefined}
         onBuildingClick={(b) => {
-          trackBuildingClicked(b.login);
+          trackBuildingClicked(b.slug);
           // A1: Wallet connect prompt after 3 building clicks without wallet
           if (!walletAuth.isConnected && !signInPromptShownRef.current) {
             buildingClickCountRef.current += 1;
@@ -1180,20 +1180,20 @@ function HomeContent() {
           }
           // Compare pick mode: clicking a second building completes the pair
           if (compareBuilding && !comparePair) {
-            if (b.login.toLowerCase() === compareBuilding.login.toLowerCase()) {
+            if (b.slug.toLowerCase() === compareBuilding.slug.toLowerCase()) {
               setCompareSelfHint(true);
               setTimeout(() => setCompareSelfHint(false), 2000);
               return;
             }
             setComparePair([compareBuilding, b]);
-            setFocusedBuilding(compareBuilding.login);
+            setFocusedBuilding(compareBuilding.slug);
             return;
           }
           // Active comparison: ignore clicks
           if (comparePair) return;
 
           setSelectedBuilding(b);
-          setFocusedBuilding(b.login);
+          setFocusedBuilding(b.slug);
           setKudosSent(false);
           setKudosError(null);
           lastDistRef.current = 999;
@@ -1466,16 +1466,7 @@ function HomeContent() {
             className="flex items-center gap-1.5 border-[3px] border-border bg-bg/70 px-2.5 py-1 text-[10px] backdrop-blur-sm transition-colors hover:border-border-light"
           >
             <span style={{ color: theme.accent }}>&#9733;</span>
-            <span className="text-cream">Star</span>
-          </a>
-          <a
-            href="https://github.com/sponsors/jorger3301"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 border-[3px] border-border bg-bg/70 px-2.5 py-1 text-[10px] backdrop-blur-sm transition-colors hover:border-border-light"
-          >
-            <span style={{ color: theme.accent }}>&#9829;</span>
-            <span className="text-cream">Sponsor</span>
+            <span className="text-cream">GitHub</span>
           </a>
         </div>
       )}
@@ -1497,7 +1488,7 @@ function HomeContent() {
                 <span style={{ color: theme.accent }}>City</span>
               </h1>
               <p className="mt-2 text-[10px] leading-relaxed text-cream/80 normal-case">
-                {stats.total_developers > 0
+                {stats.total_protocols > 0
                   ? `Solana Protocols as a 3D City. Explore DeFi.`
                   : "Solana Protocols as a 3D City. Explore DeFi."}
               </p>
@@ -1812,10 +1803,10 @@ function HomeContent() {
                       imageRendering: "pixelated",
                     }}
                   />
-                ) : selectedBuilding.avatar_url ? (
+                ) : selectedBuilding.logoUrl ? (
                   <Image
-                    src={selectedBuilding.avatar_url}
-                    alt={selectedBuilding.login}
+                    src={selectedBuilding.logoUrl}
+                    alt={selectedBuilding.slug}
                     width={48}
                     height={48}
                     className="border-[2px] border-border flex-shrink-0"
@@ -1845,8 +1836,8 @@ function HomeContent() {
                   </div>
                   <p className="truncate text-[10px] text-muted">
                     {selectedBuilding.isHouse
-                      ? truncateAddress(selectedBuilding.login)
-                      : `@${selectedBuilding.login}`}
+                      ? truncateAddress(selectedBuilding.slug)
+                      : `@${selectedBuilding.slug}`}
                   </p>
                   {!selectedBuilding.isHouse && selectedBuilding.active_raid_tag && (
                     <p className="text-[8px] text-red-400">
@@ -1861,7 +1852,7 @@ function HomeContent() {
                 <div className="grid grid-cols-2 gap-px bg-border/30 mx-4 mb-3 border border-border/50">
                   {[
                     { label: "Type", value: "Resident House" },
-                    { label: "Protocols", value: selectedBuilding.primary_language === "Resident" ? "—" : selectedBuilding.primary_language ?? "—" },
+                    { label: "Protocols", value: selectedBuilding.category === "Resident" ? "—" : selectedBuilding.category ?? "—" },
                   ].map((s) => (
                     <div key={s.label} className="bg-bg-card p-2 text-center">
                       <div className="text-xs" style={{ color: "#14F195" }}>{s.value}</div>
@@ -1873,9 +1864,9 @@ function HomeContent() {
                 <div className="grid grid-cols-3 gap-px bg-border/30 mx-4 mb-3 border border-border/50">
                   {[
                     { label: "Rank", value: `#${selectedBuilding.rank}` },
-                    { label: "TVL", value: fmtUsd(selectedBuilding.contributions) },
-                    { label: "Volume", value: fmtUsd(selectedBuilding.total_stars) },
-                    { label: "Category", value: selectedBuilding.primary_language?.split("|")[0]?.trim() ?? "—" },
+                    { label: "TVL", value: fmtUsd(selectedBuilding.tvl) },
+                    { label: "Volume", value: fmtUsd(selectedBuilding.volume) },
+                    { label: "Category", value: selectedBuilding.category?.split("|")[0]?.trim() ?? "—" },
                     { label: "Kudos", value: (selectedBuilding.kudos_count ?? 0).toLocaleString() },
                     { label: "Visits", value: (selectedBuilding.visit_count ?? 0).toLocaleString() },
                   ].map((s) => (
@@ -1920,7 +1911,7 @@ function HomeContent() {
                         })}
                       {selectedBuilding.achievements.length > 3 && (
                         <Link
-                          href={`/${selectedBuilding.login}`}
+                          href={`/${selectedBuilding.slug}`}
                           className="px-1.5 py-0.5 text-[8px] transition-colors hover:text-cream"
                           style={{ color: theme.accent }}
                         >
@@ -1931,7 +1922,7 @@ function HomeContent() {
                   )}
 
                   {/* A7: Show equipped items on other devs' buildings (mimetic desire) */}
-                  {selectedBuilding.login.toLowerCase() !== authLogin && (() => {
+                  {selectedBuilding.slug.toLowerCase() !== authLogin && (() => {
                     const equipped: string[] = [];
                     if (selectedBuilding.loadout?.crown) equipped.push(selectedBuilding.loadout.crown);
                     if (selectedBuilding.loadout?.roof) equipped.push(selectedBuilding.loadout.roof);
@@ -1970,7 +1961,7 @@ function HomeContent() {
                   {/* Wallet interaction indicator */}
                   {walletAuth.isConnected && (() => {
                     const interaction = walletAuth.interactedProtocols.find(
-                      (p) => p.protocol_slug === selectedBuilding.login
+                      (p) => p.protocol_slug === selectedBuilding.slug
                     );
                     if (!interaction) return null;
                     return (
@@ -2008,7 +1999,7 @@ function HomeContent() {
                 {selectedBuilding.isHouse ? (
                   <>
                     <Link
-                      href={`/wallet/${selectedBuilding.login}`}
+                      href={`/wallet/${selectedBuilding.slug}`}
                       className="btn-press flex-1 py-2 text-center text-[10px] text-bg"
                       style={{
                         backgroundColor: "#14F195",
@@ -2018,7 +2009,7 @@ function HomeContent() {
                       View Resident
                     </Link>
                     <a
-                      href={`https://solscan.io/account/${selectedBuilding.login}`}
+                      href={`https://solscan.io/account/${selectedBuilding.slug}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn-press flex-1 border-[2px] border-border py-2 text-center text-[10px] text-cream transition-colors hover:border-border-light"
@@ -2029,7 +2020,7 @@ function HomeContent() {
                 ) : (
                   <>
                     <Link
-                      href={`/${selectedBuilding.login}`}
+                      href={`/${selectedBuilding.slug}`}
                       className="btn-press flex-1 py-2 text-center text-[10px] text-bg"
                       style={{
                         backgroundColor: theme.accent,
@@ -2039,7 +2030,7 @@ function HomeContent() {
                       View Protocol
                     </Link>
                     <a
-                      href={`https://defillama.com/protocol/${selectedBuilding.login}`}
+                      href={`https://defillama.com/protocol/${selectedBuilding.slug}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn-press flex-1 border-[2px] border-border py-2 text-center text-[10px] text-cream transition-colors hover:border-border-light"
@@ -2064,12 +2055,12 @@ function HomeContent() {
                 style={{ backgroundColor: theme.accent }}
               />
               <span className="text-[10px] text-cream normal-case truncate min-w-0">
-                Comparing <span style={{ color: theme.accent }}>@{compareBuilding.login}</span>
+                Comparing <span style={{ color: theme.accent }}>@{compareBuilding.slug}</span>
               </span>
               <button
                 onClick={() => {
                   setSelectedBuilding(compareBuilding);
-                  setFocusedBuilding(compareBuilding.login);
+                  setFocusedBuilding(compareBuilding.slug);
                   setCompareBuilding(null);
                 }}
                 className="ml-1 flex-shrink-0 text-[9px] text-muted transition-colors hover:text-cream"
@@ -2123,9 +2114,9 @@ function HomeContent() {
       {comparePair && (() => {
         const compareStatDefs: { label: string; key: keyof CityBuilding; invert?: boolean }[] = [
           { label: "Rank", key: "rank", invert: true },
-          { label: "Contributions", key: "contributions" },
-          { label: "Stars", key: "total_stars" },
-          { label: "Repos", key: "public_repos" },
+          { label: "TVL", key: "tvl" },
+          { label: "Volume", key: "volume" },
+          { label: "Tier", key: "tier" },
           { label: "Kudos", key: "kudos_count" },
         ];
         let totalAWins = 0;
@@ -2141,12 +2132,12 @@ function HomeContent() {
           return { ...s, a, b, aW, bW };
         });
         const cmpTie = totalAWins === totalBWins;
-        const cmpWinner = totalAWins > totalBWins ? comparePair[0].login : comparePair[1].login;
+        const cmpWinner = totalAWins > totalBWins ? comparePair[0].slug : comparePair[1].slug;
         const cmpSummary = cmpTie
           ? `Tie ${totalAWins}-${totalBWins}`
           : `@${cmpWinner} wins ${Math.max(totalAWins, totalBWins)}-${Math.min(totalAWins, totalBWins)}`;
 
-        const closeCompare = () => { setSelectedBuilding(comparePair[0]); setFocusedBuilding(comparePair[0].login); setComparePair(null); setCompareBuilding(null); };
+        const closeCompare = () => { setSelectedBuilding(comparePair[0]); setFocusedBuilding(comparePair[0].slug); setComparePair(null); setCompareBuilding(null); };
 
         return (
         <>
@@ -2171,11 +2162,11 @@ function HomeContent() {
 
               {/* ── Header: Avatars + VS ── */}
               <div className="flex items-start justify-center gap-5 px-5 pt-1 pb-4 sm:pt-4">
-                <Link href={`/${comparePair[0].login}`} className="flex flex-col items-center gap-1.5 group w-[110px]">
-                  {comparePair[0].avatar_url && (
+                <Link href={`/${comparePair[0].slug}`} className="flex flex-col items-center gap-1.5 group w-[110px]">
+                  {comparePair[0].logoUrl && (
                     <Image
-                      src={comparePair[0].avatar_url}
-                      alt={comparePair[0].login}
+                      src={comparePair[0].logoUrl}
+                      alt={comparePair[0].slug}
                       width={56}
                       height={56}
                       className="border-[3px] transition-colors group-hover:brightness-110"
@@ -2185,17 +2176,17 @@ function HomeContent() {
                       }}
                     />
                   )}
-                  <p className="truncate text-[10px] text-cream normal-case max-w-[110px] transition-colors group-hover:text-white">@{comparePair[0].login}</p>
-                  <p className="text-[8px] text-muted normal-case text-center">{getDevClass(comparePair[0].login)}</p>
+                  <p className="truncate text-[10px] text-cream normal-case max-w-[110px] transition-colors group-hover:text-white">@{comparePair[0].slug}</p>
+                  <p className="text-[8px] text-muted normal-case text-center">{getDevClass(comparePair[0].slug)}</p>
                 </Link>
 
                 <span className="text-base shrink-0 pt-4" style={{ color: theme.accent }}>VS</span>
 
-                <Link href={`/${comparePair[1].login}`} className="flex flex-col items-center gap-1.5 group w-[110px]">
-                  {comparePair[1].avatar_url && (
+                <Link href={`/${comparePair[1].slug}`} className="flex flex-col items-center gap-1.5 group w-[110px]">
+                  {comparePair[1].logoUrl && (
                     <Image
-                      src={comparePair[1].avatar_url}
-                      alt={comparePair[1].login}
+                      src={comparePair[1].logoUrl}
+                      alt={comparePair[1].slug}
                       width={56}
                       height={56}
                       className="border-[3px] transition-colors group-hover:brightness-110"
@@ -2205,8 +2196,8 @@ function HomeContent() {
                       }}
                     />
                   )}
-                  <p className="truncate text-[10px] text-cream normal-case max-w-[110px] transition-colors group-hover:text-white">@{comparePair[1].login}</p>
-                  <p className="text-[8px] text-muted normal-case text-center">{getDevClass(comparePair[1].login)}</p>
+                  <p className="truncate text-[10px] text-cream normal-case max-w-[110px] transition-colors group-hover:text-white">@{comparePair[1].slug}</p>
+                  <p className="text-[8px] text-muted normal-case text-center">{getDevClass(comparePair[1].slug)}</p>
                 </Link>
               </div>
 
@@ -2252,9 +2243,9 @@ function HomeContent() {
               <div className="px-4 pt-3 pb-1 flex gap-2">
                 <a
                   href={`https://x.com/intent/tweet?text=${encodeURIComponent(
-                    `I just compared my building with ${comparePair[1].login}'s in Sol City. It wasn't even close. What's yours?`
+                    `I just compared my building with ${comparePair[1].slug}'s in Sol City. It wasn't even close. What's yours?`
                   )}&url=${encodeURIComponent(
-                    `${typeof window !== "undefined" ? window.location.origin : ""}/compare/${comparePair[0].login}/${comparePair[1].login}`
+                    `${typeof window !== "undefined" ? window.location.origin : ""}/compare/${comparePair[0].slug}/${comparePair[1].slug}`
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -2269,7 +2260,7 @@ function HomeContent() {
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(
-                      `${window.location.origin}/compare/${comparePair[0].login}/${comparePair[1].login}`
+                      `${window.location.origin}/compare/${comparePair[0].slug}/${comparePair[1].slug}`
                     );
                     setCompareCopied(true);
                     setTimeout(() => setCompareCopied(false), 2000);
@@ -2299,13 +2290,13 @@ function HomeContent() {
                 </div>
                 <button
                   onClick={async () => {
-                    const res = await fetch(`/api/compare-card/${comparePair[0].login}/${comparePair[1].login}?format=landscape&lang=${compareLang}`);
+                    const res = await fetch(`/api/compare-card/${comparePair[0].slug}/${comparePair[1].slug}?format=landscape&lang=${compareLang}`);
                     if (!res.ok) return;
                     const blob = await res.blob();
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement("a");
                     a.href = url;
-                    a.download = `solcity-${comparePair[0].login}-vs-${comparePair[1].login}.png`;
+                    a.download = `solcity-${comparePair[0].slug}-vs-${comparePair[1].slug}.png`;
                     document.body.appendChild(a);
                     a.click();
                     a.remove();
@@ -2317,13 +2308,13 @@ function HomeContent() {
                 </button>
                 <button
                   onClick={async () => {
-                    const res = await fetch(`/api/compare-card/${comparePair[0].login}/${comparePair[1].login}?format=stories&lang=${compareLang}`);
+                    const res = await fetch(`/api/compare-card/${comparePair[0].slug}/${comparePair[1].slug}?format=stories&lang=${compareLang}`);
                     if (!res.ok) return;
                     const blob = await res.blob();
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement("a");
                     a.href = url;
-                    a.download = `solcity-${comparePair[0].login}-vs-${comparePair[1].login}-stories.png`;
+                    a.download = `solcity-${comparePair[0].slug}-vs-${comparePair[1].slug}-stories.png`;
                     document.body.appendChild(a);
                     a.click();
                     a.remove();
@@ -2342,7 +2333,7 @@ function HomeContent() {
                     const first = comparePair[0];
                     setComparePair(null);
                     setCompareBuilding(first);
-                    setFocusedBuilding(first.login);
+                    setFocusedBuilding(first.slug);
                   }}
                   className="btn-press flex-1 border-[2px] border-border py-2 text-center text-[10px] text-cream transition-colors hover:border-border-light"
                 >
@@ -2381,10 +2372,10 @@ function HomeContent() {
             </button>
 
             {/* Avatar */}
-            {shareData.avatar_url && (
+            {shareData.logoUrl && (
               <Image
-                src={shareData.avatar_url}
-                alt={shareData.login}
+                src={shareData.logoUrl}
+                alt={shareData.slug}
                 width={48}
                 height={48}
                 className="mx-auto mb-3 border-[2px] border-border"
@@ -2393,13 +2384,13 @@ function HomeContent() {
             )}
 
             <p className="text-xs text-cream normal-case">
-              <span style={{ color: theme.accent }}>@{shareData.login}</span> joined the city!
+              <span style={{ color: theme.accent }}>@{shareData.slug}</span> joined the city!
             </p>
 
             <p className="mt-2 text-[10px] text-muted normal-case">
               Rank <span style={{ color: theme.accent }}>#{shareData.rank ?? "?"}</span>
               {" · "}
-              <span style={{ color: theme.accent }}>{shareData.contributions.toLocaleString()}</span> contributions
+              <span style={{ color: theme.accent }}>{shareData.tvl.toLocaleString()}</span> contributions
             </p>
 
             {/* Buttons */}
@@ -2408,7 +2399,7 @@ function HomeContent() {
                 onClick={() => {
                   if (!selectedBuilding && shareData) {
                     const b = buildings.find(
-                      (b) => b.login.toLowerCase() === shareData.login.toLowerCase()
+                      (b) => b.slug.toLowerCase() === shareData.slug.toLowerCase()
                     );
                     if (b) setSelectedBuilding(b);
                   }
@@ -2426,9 +2417,9 @@ function HomeContent() {
 
               <a
                 href={`https://x.com/intent/tweet?text=${encodeURIComponent(
-                  `${shareData.login} is a building in Sol City. $${shareData.contributions.toLocaleString()} TVL, Rank #${shareData.rank ?? "?"}. Explore Solana protocols as a 3D city.`
+                  `${shareData.slug} is a building in Sol City. $${shareData.tvl.toLocaleString()} TVL, Rank #${shareData.rank ?? "?"}. Explore Solana protocols as a 3D city.`
                 )}&url=${encodeURIComponent(
-                  `${window.location.origin}/${shareData.login}`
+                  `${window.location.origin}/${shareData.slug}`
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -2442,7 +2433,7 @@ function HomeContent() {
                 onClick={() => {
                   trackShareClicked("copy_link");
                   navigator.clipboard.writeText(
-                    `${window.location.origin}/dev/${shareData.login}`
+                    `${window.location.origin}/dev/${shareData.slug}`
                   );
                   setCopied(true);
                   setTimeout(() => setCopied(false), 2000);
@@ -2455,7 +2446,7 @@ function HomeContent() {
 
             {/* View profile link */}
             <a
-              href={`/${shareData.login}`}
+              href={`/${shareData.slug}`}
               className="mt-4 inline-block text-[9px] text-muted transition-colors hover:text-cream normal-case"
             >
               View full profile &rarr;
@@ -2591,7 +2582,7 @@ function HomeContent() {
             const login = evt.actor?.login;
             if (login) {
               setFocusedBuilding(login);
-              const found = buildings.find(b => b.login.toLowerCase() === login.toLowerCase());
+              const found = buildings.find(b => b.slug.toLowerCase() === login.toLowerCase());
               if (found) {
                 setSelectedBuilding(found);
                 if (!exploreMode) setExploreMode(true);
@@ -2614,7 +2605,7 @@ function HomeContent() {
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <div>
                 <h3 className="text-xs" style={{ color: theme.accent }}>Send Gift</h3>
-                <p className="mt-0.5 text-[8px] text-muted normal-case">to @{selectedBuilding.login}</p>
+                <p className="mt-0.5 text-[8px] text-muted normal-case">to @{selectedBuilding.slug}</p>
               </div>
               <button
                 onClick={() => { setGiftModalOpen(false); setGiftItems(null); }}
@@ -2669,7 +2660,7 @@ function HomeContent() {
           if (compareBuilding || comparePair) return;
           setFeedPanelOpen(false);
           setFocusedBuilding(login);
-          const found = buildings.find(b => b.login.toLowerCase() === login.toLowerCase());
+          const found = buildings.find(b => b.slug.toLowerCase() === login.toLowerCase());
           if (found) {
             setSelectedBuilding(found);
             if (!exploreMode) setExploreMode(true);
@@ -2836,7 +2827,7 @@ function HomeContent() {
             }
           }}
           onProtocolClick={(slug) => {
-            const building = buildings.find((b) => b.login === slug);
+            const building = buildings.find((b) => b.slug === slug);
             if (building) {
               setFocusedBuilding(slug);
               setSelectedBuilding(building);
@@ -2845,7 +2836,7 @@ function HomeContent() {
           }}
           onResidentClick={() => {
             if (!walletAuth.address) return;
-            const house = buildings.find((b) => b.isHouse && b.login === walletAuth.address);
+            const house = buildings.find((b) => b.isHouse && b.slug === walletAuth.address);
             if (house) {
               setFocusedBuilding(walletAuth.address);
               setSelectedBuilding(house);

@@ -51,7 +51,7 @@ function StrengthBar({
         {score}
       </span>
       <div className="flex flex-col items-center gap-0.5 text-[8px] text-muted/70">
-        {breakdown.commits > 0 && <span>commits {breakdown.commits}</span>}
+        {breakdown.commits > 0 && <span>activity {breakdown.commits}</span>}
         {breakdown.streak > 0 && <span>streak {breakdown.streak}</span>}
         {breakdown.kudos > 0 && <span>kudos {breakdown.kudos}</span>}
         {breakdown.commits === 0 && breakdown.streak === 0 && breakdown.kudos === 0 && (
@@ -140,7 +140,7 @@ export default function RaidPreviewModal({ preview, loading, error, onRaid, onCa
                 />
               )}
               <p className="truncate text-xs font-bold text-cream">
-                {preview.attacker_login}
+                {preview.attacker_slug}
               </p>
             </div>
             <StrengthBar
@@ -163,7 +163,7 @@ export default function RaidPreviewModal({ preview, loading, error, onRaid, onCa
                 />
               )}
               <p className="truncate text-xs font-bold text-cream">
-                {preview.defender_login}
+                {preview.defender_slug}
               </p>
             </div>
             <StrengthBar

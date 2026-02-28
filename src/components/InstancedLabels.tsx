@@ -41,9 +41,9 @@ function createTextAtlas(buildings: CityBuilding[]): THREE.CanvasTexture {
     const cy = row * CELL_H + CELL_H / 2;
 
     const login =
-      b.login.length > 16
-        ? b.login.slice(0, 16).toUpperCase() + "..."
-        : b.login.toUpperCase();
+      b.slug.length > 16
+        ? b.slug.slice(0, 16).toUpperCase() + "..."
+        : b.slug.toUpperCase();
     const text = `@${login}`;
 
     // Background pill
@@ -286,7 +286,7 @@ export default memo(function InstancedLabels({
 
   // Pre-compute lowercased logins (avoid 1000+ toLowerCase calls per tick)
   const loginsLower = useMemo(
-    () => buildings.slice(0, count).map((b) => b.login.toLowerCase()),
+    () => buildings.slice(0, count).map((b) => b.slug.toLowerCase()),
     [buildings, count]
   );
 

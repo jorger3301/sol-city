@@ -104,7 +104,7 @@ export default async function Image() {
               textTransform: "uppercase",
             }}
           >
-            <span style={{ fontSize: 110, color: cream }}>GIT</span>
+            <span style={{ fontSize: 110, color: cream }}>SOL</span>
             <span style={{ fontSize: 110, color: accent }}>CITY</span>
           </div>
           <div
@@ -116,8 +116,8 @@ export default async function Image() {
               gap: 10,
             }}
           >
-            <span style={{ color: muted }}>Where code</span>
-            <span style={{ color: accent }}>builds cities</span>
+            <span style={{ color: muted }}>Solana Protocols</span>
+            <span style={{ color: accent }}>as a 3D City</span>
           </div>
         </div>
 

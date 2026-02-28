@@ -214,45 +214,6 @@ function SupportContent() {
           )}
         </div>
 
-        {/* GitHub Sponsors */}
-        <div
-          className="flex flex-col gap-3 p-5"
-          style={{
-            border: "2px solid rgba(0, 255, 65, 0.2)",
-            background: "rgba(0, 255, 65, 0.02)",
-            boxShadow: "4px 4px 0px rgba(0, 255, 65, 0.08)",
-          }}
-        >
-          <span
-            className="font-pixel text-[11px] sm:text-[12px] tracking-wider"
-            style={{ color: "#00ff41" }}
-          >
-            02 // GITHUB SPONSORS
-          </span>
-          <a
-            href="https://github.com/sponsors/jorger3301"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-pixel text-[10px] sm:text-[11px] px-5 py-2.5 tracking-wider transition-all duration-200 cursor-pointer inline-block w-fit"
-            style={{
-              color: "#00ff41",
-              border: "2px solid rgba(0, 255, 65, 0.35)",
-              background: "rgba(0, 255, 65, 0.05)",
-              boxShadow: "3px 3px 0px rgba(0, 255, 65, 0.12)",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(0, 255, 65, 0.15)";
-              e.currentTarget.style.borderColor = "#00ff41";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "rgba(0, 255, 65, 0.05)";
-              e.currentTarget.style.borderColor = "rgba(0, 255, 65, 0.35)";
-            }}
-          >
-            github.com/sponsors/jorger3301
-          </a>
-        </div>
-
         {/* Crypto */}
         <div
           className="flex flex-col gap-3 p-5"
@@ -266,7 +227,7 @@ function SupportContent() {
             className="font-pixel text-[11px] sm:text-[12px] tracking-wider"
             style={{ color: "#00ff41" }}
           >
-            03 // CRYPTO (ETH)
+            02 // CRYPTO (ETH)
           </span>
           <div className="flex items-center gap-2 mt-1">
             <code
