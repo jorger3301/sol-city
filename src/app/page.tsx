@@ -2853,7 +2853,7 @@ function HomeContent() {
         />
       )}
       {walletAuth.showWalletPicker && (
-        <WalletPicker onClose={walletAuth.closeWalletPicker} />
+        <WalletPicker onClose={walletAuth.closeWalletPicker} onConnect={(id) => walletAuth.connect(id)} />
       )}
     </main>
   );

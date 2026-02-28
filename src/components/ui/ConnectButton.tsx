@@ -1,6 +1,6 @@
 "use client";
 
-import { useWallet, useDisconnectWallet } from "@solana/connector";
+import { useWallet, useConnectWallet, useDisconnectWallet, type WalletConnectorId } from "@solana/connector";
 import { truncateAddress } from "@/lib/api/utils";
 import { useState } from "react";
 import WalletPicker from "@/components/ui/WalletPicker";
@@ -12,8 +12,18 @@ interface Props {
 
 export default function ConnectButton({ accent, shadow }: Props) {
   const { account, isConnected } = useWallet();
+  const { connect } = useConnectWallet();
   const { disconnect } = useDisconnectWallet();
   const [showPicker, setShowPicker] = useState(false);
+
+  const handleConnect = async (connectorId: WalletConnectorId) => {
+    setShowPicker(false);
+    try {
+      await connect(connectorId);
+    } catch {
+      setShowPicker(true);
+    }
+  };
 
   if (isConnected && account) {
     return (
@@ -48,7 +58,7 @@ export default function ConnectButton({ accent, shadow }: Props) {
         </button>
       </div>
       {showPicker && (
-        <WalletPicker onClose={() => setShowPicker(false)} />
+        <WalletPicker onClose={() => setShowPicker(false)} onConnect={handleConnect} />
       )}
     </>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useWalletConnectors, useConnectWallet } from "@solana/connector";
+import { useWalletConnectors, type WalletConnectorId } from "@solana/connector";
 
 function PhantomIcon({ size = 16 }: { size?: number }) {
   return (
@@ -50,7 +50,6 @@ const WALLETS = [
   {
     name: "Phantom",
     icon: PhantomIcon,
-    /** Lowercase strings to match against connector name/id */
     match: ["phantom"],
     mobileBrowse: (href: string) =>
       `https://phantom.app/ul/browse/${encodeURIComponent(href)}`,
@@ -68,37 +67,27 @@ const WALLETS = [
 
 interface Props {
   onClose: () => void;
+  onConnect?: (connectorId: WalletConnectorId) => void;
 }
 
-export default function WalletPicker({ onClose }: Props) {
+export default function WalletPicker({ onClose, onConnect }: Props) {
   const href = typeof window !== "undefined" ? window.location.href : "";
   const mobile = isMobile();
   const connectors = useWalletConnectors();
-  const { connect: walletConnect } = useConnectWallet();
 
-  const handleClick = async (wallet: (typeof WALLETS)[number]) => {
-    if (mobile) {
-      // Deep link — handled by the <a> tag
-      return;
-    }
+  const handleClick = (wallet: (typeof WALLETS)[number]) => {
+    if (mobile) return; // handled by <a> tag
 
-    // On desktop, try to find a matching installed connector
+    // Find a matching installed connector
     const connector = connectors.find((c) => {
       const id = (c.id ?? "").toLowerCase();
       const name = ((c as { name?: string }).name ?? "").toLowerCase();
       return wallet.match.some((m) => id.includes(m) || name.includes(m));
     });
 
-    if (connector) {
-      onClose();
-      try {
-        await walletConnect(connector.id);
-      } catch {
-        // If connection fails, open the download page as fallback
-        window.open(wallet.extensionUrl, "_blank");
-      }
+    if (connector && onConnect) {
+      onConnect(connector.id);
     } else {
-      // Wallet not installed — open download page
       window.open(wallet.extensionUrl, "_blank");
     }
   };
@@ -131,7 +120,7 @@ export default function WalletPicker({ onClose }: Props) {
               <button
                 key={w.name}
                 onClick={() => handleClick(w)}
-                className="flex items-center gap-2.5 border border-border px-3 py-2.5 text-[11px] text-cream transition-colors hover:border-border-light hover:bg-raised active:bg-raised"
+                className="flex items-center gap-2.5 border border-border px-3 py-2.5 text-[11px] text-cream transition-colors hover:border-border-light hover:bg-raised active:bg-raised text-left"
               >
                 <w.icon size={16} />
                 {w.name}

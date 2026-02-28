@@ -7,6 +7,7 @@ import {
   useDisconnectWallet,
   useWalletConnectors,
   useTransactionSigner,
+  type WalletConnectorId,
 } from "@solana/connector";
 import bs58 from "bs58";
 import type { WalletData } from "@/lib/api/types";
@@ -28,7 +29,7 @@ export interface WalletAuthState {
   showWalletPicker: boolean;
   clearError: () => void;
   closeWalletPicker: () => void;
-  connect: () => Promise<void>;
+  connect: (connectorId?: WalletConnectorId) => Promise<void>;
   disconnect: () => Promise<void>;
 }
 
@@ -95,10 +96,21 @@ export function useWalletAuth(): WalletAuthState {
     }
   }, []);
 
-  const connect = useCallback(async () => {
+  const connect = useCallback(async (connectorId?: WalletConnectorId) => {
     setError(null);
-    setShowWalletPicker(true);
-  }, []);
+    if (!connectorId) {
+      setShowWalletPicker(true);
+      return;
+    }
+    setShowWalletPicker(false);
+    setConnecting(true);
+    try {
+      await walletConnect(connectorId);
+    } catch {
+      setConnecting(false);
+      setShowWalletPicker(true);
+    }
+  }, [walletConnect]);
 
   // When wallet connects and signer becomes available, sign message + create session
   useEffect(() => {
