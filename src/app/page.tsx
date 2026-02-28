@@ -2843,6 +2843,15 @@ function HomeContent() {
               setExploreMode(true);
             }
           }}
+          onResidentClick={() => {
+            if (!walletAuth.address) return;
+            const house = buildings.find((b) => b.isHouse && b.login === walletAuth.address);
+            if (house) {
+              setFocusedBuilding(walletAuth.address);
+              setSelectedBuilding(house);
+              setExploreMode(true);
+            }
+          }}
           claiming={walletAuth.connecting}
           houseColor={walletAuth.houseColor}
         />

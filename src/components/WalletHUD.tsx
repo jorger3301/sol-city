@@ -18,6 +18,7 @@ interface WalletHUDProps {
   accentColor: string;
   onClaimHouse: () => void;
   onProtocolClick: (slug: string) => void;
+  onResidentClick?: () => void;
   claiming: boolean;
   houseColor?: string | null;
 }
@@ -30,6 +31,7 @@ export default function WalletHUD({
   accentColor,
   onClaimHouse,
   onProtocolClick,
+  onResidentClick,
   claiming,
   houseColor,
 }: WalletHUDProps) {
@@ -93,9 +95,13 @@ export default function WalletHUD({
                 </button>
               )}
               {isResident && (
-                <span className="text-[9px]" style={{ color: "#14F195" }}>
+                <button
+                  onClick={onResidentClick}
+                  className="text-[9px] transition-colors hover:brightness-125"
+                  style={{ color: "#14F195" }}
+                >
                   ★ Resident
-                </span>
+                </button>
               )}
             </div>
 

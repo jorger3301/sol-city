@@ -1082,30 +1082,32 @@ export function placeResidentHouses(
     if (b.position[2] + halfD > maxZ) maxZ = b.position[2] + halfD;
   }
 
-  // Add padding for the residential ring
-  const RING_OFFSET = 40; // Distance from protocol edge to house ring
+  // Add small padding for the residential ring (tight around protocol district)
+  const RING_OFFSET = 15;
   const ringMinX = minX - RING_OFFSET;
   const ringMaxX = maxX + RING_OFFSET;
   const ringMinZ = minZ - RING_OFFSET;
   const ringMaxZ = maxZ + RING_OFFSET;
 
-  // Generate house positions along the ring perimeter
+  // Generate house positions along the ring perimeter.
+  // Start from the bottom edge (+Z, closest to default camera) so early
+  // residents get the most visible spots.
   const positions: [number, number][] = [];
 
-  // Top edge (left to right)
+  // Bottom edge — right to left (camera faces this side)
+  for (let x = ringMaxX; x >= ringMinX; x -= HOUSE_SPACING) {
+    positions.push([x, ringMaxZ]);
+  }
+  // Right edge — bottom to top
+  for (let z = ringMaxZ - HOUSE_SPACING; z >= ringMinZ; z -= HOUSE_SPACING) {
+    positions.push([ringMaxX, z]);
+  }
+  // Top edge — left to right
   for (let x = ringMinX; x <= ringMaxX; x += HOUSE_SPACING) {
     positions.push([x, ringMinZ]);
   }
-  // Right edge (top to bottom)
-  for (let z = ringMinZ + HOUSE_SPACING; z <= ringMaxZ; z += HOUSE_SPACING) {
-    positions.push([ringMaxX, z]);
-  }
-  // Bottom edge (right to left)
-  for (let x = ringMaxX - HOUSE_SPACING; x >= ringMinX; x -= HOUSE_SPACING) {
-    positions.push([x, ringMaxZ]);
-  }
-  // Left edge (bottom to top)
-  for (let z = ringMaxZ - HOUSE_SPACING; z > ringMinZ; z -= HOUSE_SPACING) {
+  // Left edge — top to bottom
+  for (let z = ringMinZ + HOUSE_SPACING; z < ringMaxZ; z += HOUSE_SPACING) {
     positions.push([ringMinX, z]);
   }
 

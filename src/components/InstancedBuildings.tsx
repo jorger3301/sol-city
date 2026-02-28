@@ -85,13 +85,14 @@ const fragmentShader = /* glsl */ `
     vec2 atlasUv = uvParams.xy + vUv * uvParams.zw;
     vec3 wallColor = texture2D(uAtlas, atlasUv).rgb;
 
-    // Custom color tint: blend custom color with theme face color at 50%
-    // vTint.a > 0.5 means this building has a custom color
+    // Custom color tint
+    // vTint.a ~1.0 = normal tint (protocol custom color, 50% blend on faces)
+    // vTint.a ~2.0 = strong tint (resident house, 85% blend on faces + tinted roof)
     if (vTint.a > 0.5) {
-      // Detect face pixels (background between windows) vs window pixels
-      // Face pixels are close to uFaceColor, windows are brighter
       float isFacePixel = step(length(wallColor - uFaceColor), 0.08);
-      vec3 blendedTint = mix(uFaceColor, vTint.rgb, 0.5);
+      float isHouse = step(1.5, vTint.a);
+      float blendStrength = mix(0.5, 0.85, isHouse);
+      vec3 blendedTint = mix(uFaceColor, vTint.rgb, blendStrength);
       wallColor = mix(wallColor, blendedTint, isFacePixel);
     }
 
@@ -99,8 +100,12 @@ const fragmentShader = /* glsl */ `
     vec3 emissive = wallColor * 1.8;
     vec3 wallFinal = wallColor * 0.3 + emissive;
 
-    // Roof: solid color with emissive
-    vec3 roofFinal = uRoofColor * 1.8;
+    // Roof: solid color with emissive (houses get a tinted roof)
+    vec3 roofColor = uRoofColor;
+    if (vTint.a > 1.5) {
+      roofColor = mix(uRoofColor, vTint.rgb, 0.6);
+    }
+    vec3 roofFinal = roofColor * 1.8;
 
     vec3 color = mix(wallFinal, roofFinal, isRoof);
 
@@ -265,13 +270,14 @@ export default memo(function InstancedBuildings({
       // Rise starts at 0 (will animate to 1)
       rise[i] = 0;
 
-      // Custom color tint (rgb = color, a = flag)
+      // Custom color tint (rgb = color, a = tint mode)
+      // a = 0: no tint, a = 1: normal tint (protocol), a = 2: strong tint (house)
       if (b.custom_color) {
         _c.set(b.custom_color);
         tint[i * 4 + 0] = _c.r;
         tint[i * 4 + 1] = _c.g;
         tint[i * 4 + 2] = _c.b;
-        tint[i * 4 + 3] = 1.0;
+        tint[i * 4 + 3] = b.isHouse ? 2.0 : 1.0;
       } else {
         tint[i * 4 + 0] = 0;
         tint[i * 4 + 1] = 0;
