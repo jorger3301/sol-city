@@ -10,7 +10,7 @@ interface ResidentAvatarProps {
   interactive?: boolean;
 }
 
-const SIZE_MAP = { xs: 12, sm: 28, md: 40, lg: 48 };
+const SIZE_MAP = { xs: 20, sm: 28, md: 40, lg: 48 };
 const SOL_CITY_COLORS = ["#c8e64a", "#6090e0", "#14F195", "#e8dcc8", "#f85149"];
 const DEFAULT_HOUSE_COLOR = "#6090e0";
 
@@ -26,13 +26,12 @@ export default function ResidentAvatar({
   const borderColor = houseColor || DEFAULT_HOUSE_COLOR;
 
   return (
-    <span
-      className={`inline-flex flex-shrink-0 items-center justify-center ${className}`}
+    <div
+      className={`inline-flex flex-shrink-0 ${className}`}
       style={{
         width: px,
         height: px,
         border: `${borderWidth}px solid ${borderColor}`,
-        overflow: "hidden",
       }}
     >
       <Facehash
@@ -45,6 +44,6 @@ export default function ResidentAvatar({
         enableBlink={interactive}
         colors={SOL_CITY_COLORS}
       />
-    </span>
+    </div>
   );
 }
