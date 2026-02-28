@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
-import { AppProvider } from "@solana/connector/react";
 import {
+  AppProvider,
   getDefaultConfig,
   getDefaultMobileConfig,
-} from "@solana/connector/headless";
+} from "@solana/connector";
 import type { ReactNode } from "react";
 
 export default function SolanaProvider({ children }: { children: ReactNode }) {
