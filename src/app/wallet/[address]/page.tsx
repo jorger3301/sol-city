@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { isValidSolanaAddress, truncateAddress, formatTvl } from "@/lib/api/utils";
+import ResidentAvatar from "@/components/ResidentAvatar";
 import type { WalletData } from "@/lib/api/types";
 
 interface ResidentInfo {
@@ -113,12 +114,10 @@ export default function WalletPage() {
         {resident && (
           <div className="mb-6 border-[3px] border-border bg-bg-raised/80 px-4 py-3">
             <div className="flex items-center gap-3">
-              <span
-                className="h-10 w-10 shrink-0 border-[2px] border-border"
-                style={{
-                  backgroundColor: resident.house_color || "#6090e0",
-                  imageRendering: "pixelated",
-                }}
+              <ResidentAvatar
+                walletAddress={address}
+                size="md"
+                houseColor={resident.house_color}
               />
               <div>
                 <div className="flex items-center gap-2">

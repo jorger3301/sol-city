@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { truncateAddress, formatTvl } from "@/lib/api/utils";
+import ResidentAvatar from "@/components/ResidentAvatar";
 import type { WalletData, WalletPnL } from "@/lib/api/types";
 
 function formatPnl(value: number | null): string {
@@ -109,9 +110,11 @@ export default function WalletHUD({
             {isResident && (
               <div className="mt-2 flex items-center gap-2">
                 <div className="text-[8px] text-muted">HOUSE</div>
-                <span
-                  className="inline-block h-3 w-3 border border-border"
-                  style={{ backgroundColor: houseColor || "#6090e0" }}
+                <ResidentAvatar
+                  walletAddress={walletAddress}
+                  size="xs"
+                  houseColor={houseColor}
+                  interactive={false}
                 />
                 <a
                   href="/shop"

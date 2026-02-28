@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import { useWalletAuth } from "@/lib/useWalletAuth";
 import { truncateAddress } from "@/lib/api/utils";
 import WalletHUD from "@/components/WalletHUD";
+import ResidentAvatar from "@/components/ResidentAvatar";
 import {
   generateProtocolCityLayout,
   placeResidentHouses,
@@ -1796,12 +1797,10 @@ function HomeContent() {
               {/* Header with avatar + name */}
               <div className="flex items-center gap-3 px-4 pb-3 sm:pt-4">
                 {selectedBuilding.isHouse ? (
-                  <span
-                    className="h-12 w-12 flex-shrink-0 border-[2px] border-border"
-                    style={{
-                      backgroundColor: selectedBuilding.custom_color || "#6090e0",
-                      imageRendering: "pixelated",
-                    }}
+                  <ResidentAvatar
+                    walletAddress={selectedBuilding.slug}
+                    size="lg"
+                    houseColor={selectedBuilding.custom_color}
                   />
                 ) : selectedBuilding.logoUrl ? (
                   <Image

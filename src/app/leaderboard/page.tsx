@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import LeaderboardTracker from "@/components/LeaderboardTracker";
+import ResidentAvatar from "@/components/ResidentAvatar";
 
 export const dynamic = "force-dynamic";
 
@@ -219,9 +220,11 @@ export default async function LeaderboardPage({
                     </span>
 
                     <div className="flex flex-1 items-center gap-3 overflow-hidden">
-                      <span
-                        className="h-7 w-7 flex-shrink-0 border-[2px] border-border"
-                        style={{ backgroundColor: t.houseColor || "#6090e0" }}
+                      <ResidentAvatar
+                        walletAddress={t.address}
+                        size="sm"
+                        houseColor={t.houseColor}
+                        interactive={false}
                       />
                       <div className="overflow-hidden">
                         <p className="truncate text-sm text-cream">
