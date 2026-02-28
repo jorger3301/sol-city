@@ -24,13 +24,28 @@ interface Protocol {
   rank: number | null;
 }
 
-type TabId = "tvl" | "volume" | "fees" | "change";
+interface Trader {
+  address: string;
+  name: string | null;
+  houseColor: string | null;
+  pnl: number;
+  unrealizedPnl: number;
+  winRate: number;
+  volume: number;
+  trades: number;
+  tokensTraded: number;
+  bestToken: { symbol: string; pnlUsd: number } | null;
+  worstToken: { symbol: string; pnlUsd: number } | null;
+}
+
+type TabId = "tvl" | "volume" | "fees" | "change" | "residents";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "tvl", label: "TVL" },
   { id: "volume", label: "Volume 24h" },
   { id: "fees", label: "Fees 24h" },
   { id: "change", label: "24h Change" },
+  { id: "residents", label: "Residents" },
 ];
 
 const ACCENT = "#c8e64a";
@@ -56,6 +71,15 @@ function fmtChange(val: number | null): string {
   return sign + val.toFixed(1) + "%";
 }
 
+function fmtPnl(val: number): string {
+  const prefix = val >= 0 ? "+$" : "-$";
+  return `${prefix}${Math.abs(val).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+}
+
+function truncateAddr(addr: string): string {
+  return addr.slice(0, 4) + "..." + addr.slice(-4);
+}
+
 export default async function LeaderboardPage({
   searchParams,
 }: {
@@ -64,21 +88,41 @@ export default async function LeaderboardPage({
   const params = await searchParams;
   const activeTab = (params.tab ?? "tvl") as TabId;
 
-  const supabase = getSupabaseAdmin();
+  let protocols: Protocol[] = [];
+  let traders: Trader[] = [];
 
-  const orderColumn = activeTab === "tvl" ? "rank"
-    : activeTab === "volume" ? "volume_24h"
-    : activeTab === "fees" ? "fees_24h"
-    : "change_24h";
-  const orderAscending = activeTab === "tvl"; // rank is ascending (1 = best)
+  if (activeTab === "residents") {
+    const baseUrl =
+      process.env.NEXT_PUBLIC_BASE_URL ??
+      (process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : "http://localhost:3000");
+    try {
+      const res = await fetch(`${baseUrl}/api/top-traders`, { next: { revalidate: 300 } });
+      if (res.ok) {
+        const json = await res.json();
+        traders = json.traders ?? [];
+      }
+    } catch {
+      /* fetch failed — traders stays empty */
+    }
+  } else {
+    const supabase = getSupabaseAdmin();
 
-  const { data } = await supabase
-    .from("protocols")
-    .select("slug, name, category, tvl, volume_24h, fees_24h, change_24h, logo_url, rank")
-    .order(orderColumn, { ascending: orderAscending, nullsFirst: false })
-    .limit(50);
+    const orderColumn = activeTab === "tvl" ? "rank"
+      : activeTab === "volume" ? "volume_24h"
+      : activeTab === "fees" ? "fees_24h"
+      : "change_24h";
+    const orderAscending = activeTab === "tvl";
 
-  const protocols = (data ?? []) as Protocol[];
+    const { data } = await supabase
+      .from("protocols")
+      .select("slug, name, category, tvl, volume_24h, fees_24h, change_24h, logo_url, rank")
+      .order(orderColumn, { ascending: orderAscending, nullsFirst: false })
+      .limit(50);
+
+    protocols = (data ?? []) as Protocol[];
+  }
 
   function getMetricValue(p: Protocol): string {
     switch (activeTab) {
@@ -119,7 +163,9 @@ export default async function LeaderboardPage({
             Leader<span style={{ color: ACCENT }}>board</span>
           </h1>
           <p className="mt-3 text-xs text-muted normal-case">
-            Top Solana protocols ranked in Sol City
+            {activeTab === "residents"
+              ? "Resident traders ranked by realized PnL"
+              : "Top Solana protocols ranked in Sol City"}
           </p>
         </div>
 
@@ -143,71 +189,139 @@ export default async function LeaderboardPage({
 
         {/* Table */}
         <div className="mt-6 border-[3px] border-border">
-          {/* Header row */}
-          <div className="flex items-center gap-4 border-b-[3px] border-border bg-bg-card px-5 py-3 text-xs text-muted">
-            <span className="w-10 text-center">#</span>
-            <span className="flex-1">Protocol</span>
-            <span className="hidden w-24 text-right sm:block">Category</span>
-            <span className="w-28 text-right">{metricLabel}</span>
-          </div>
+          {activeTab === "residents" ? (
+            <>
+              {/* Residents header */}
+              <div className="flex items-center gap-4 border-b-[3px] border-border bg-bg-card px-5 py-3 text-xs text-muted">
+                <span className="w-10 text-center">#</span>
+                <span className="flex-1">Resident</span>
+                <span className="hidden w-20 text-right sm:block">Win Rate</span>
+                <span className="w-28 text-right">PnL</span>
+              </div>
 
-          {/* Rows */}
-          {protocols.map((p, i) => {
-            const pos = i + 1;
-            return (
-              <Link
-                key={p.slug}
-                href={`/${p.slug}`}
-                className="flex items-center gap-4 border-b border-border/50 px-5 py-3.5 transition-colors hover:bg-bg-card"
-              >
-                <span className="w-10 text-center">
-                  <span
-                    className="text-sm font-bold"
-                    style={{ color: rankColor(pos) }}
+              {/* Resident rows */}
+              {traders.map((t, i) => {
+                const pos = i + 1;
+                const pnlColor = t.pnl >= 0 ? "#4ade80" : "#f87171";
+                return (
+                  <Link
+                    key={t.address}
+                    href={`/wallet/${t.address}`}
+                    className="flex items-center gap-4 border-b border-border/50 px-5 py-3.5 transition-colors hover:bg-bg-card"
                   >
-                    {pos}
-                  </span>
-                </span>
+                    <span className="w-10 text-center">
+                      <span
+                        className="text-sm font-bold"
+                        style={{ color: rankColor(pos) }}
+                      >
+                        {pos}
+                      </span>
+                    </span>
 
-                <div className="flex flex-1 items-center gap-3 overflow-hidden">
-                  {p.logo_url && (
-                    <Image
-                      src={p.logo_url}
-                      alt={p.name}
-                      width={36}
-                      height={36}
-                      className="border-[2px] border-border flex-shrink-0"
-                      style={{ imageRendering: "pixelated" }}
-                    />
-                  )}
-                  <div className="overflow-hidden">
-                    <p className="truncate text-sm text-cream">
-                      {p.name}
-                    </p>
-                    <p className="truncate text-[10px] text-muted">
-                      {p.slug}
-                    </p>
-                  </div>
+                    <div className="flex flex-1 items-center gap-3 overflow-hidden">
+                      <span
+                        className="h-7 w-7 flex-shrink-0 border-[2px] border-border"
+                        style={{ backgroundColor: t.houseColor || "#6090e0" }}
+                      />
+                      <div className="overflow-hidden">
+                        <p className="truncate text-sm text-cream">
+                          {t.name || truncateAddr(t.address)}
+                        </p>
+                        <p className="truncate text-[10px] text-muted">
+                          {t.trades.toLocaleString()} trades
+                        </p>
+                      </div>
+                    </div>
+
+                    <span className="hidden w-20 text-right text-xs text-muted sm:block">
+                      {t.winRate.toFixed(0)}%
+                    </span>
+
+                    <span
+                      className="w-28 text-right text-sm"
+                      style={{ color: pnlColor }}
+                    >
+                      {fmtPnl(t.pnl)}
+                    </span>
+                  </Link>
+                );
+              })}
+
+              {traders.length === 0 && (
+                <div className="px-5 py-8 text-center text-xs text-muted normal-case">
+                  No resident trading data yet.
                 </div>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Protocol header */}
+              <div className="flex items-center gap-4 border-b-[3px] border-border bg-bg-card px-5 py-3 text-xs text-muted">
+                <span className="w-10 text-center">#</span>
+                <span className="flex-1">Protocol</span>
+                <span className="hidden w-24 text-right sm:block">Category</span>
+                <span className="w-28 text-right">{metricLabel}</span>
+              </div>
 
-                <span className="hidden w-24 text-right text-xs text-muted sm:block">
-                  {p.category ?? "\u2014"}
-                </span>
+              {/* Protocol rows */}
+              {protocols.map((p, i) => {
+                const pos = i + 1;
+                return (
+                  <Link
+                    key={p.slug}
+                    href={`/${p.slug}`}
+                    className="flex items-center gap-4 border-b border-border/50 px-5 py-3.5 transition-colors hover:bg-bg-card"
+                  >
+                    <span className="w-10 text-center">
+                      <span
+                        className="text-sm font-bold"
+                        style={{ color: rankColor(pos) }}
+                      >
+                        {pos}
+                      </span>
+                    </span>
 
-                <span
-                  className="w-28 text-right text-sm"
-                  style={{ color: getChangeColor(p) ?? ACCENT }}
-                >
-                  {getMetricValue(p)}
-                </span>
-              </Link>
-            );
-          })}
+                    <div className="flex flex-1 items-center gap-3 overflow-hidden">
+                      {p.logo_url && (
+                        <Image
+                          src={p.logo_url}
+                          alt={p.name}
+                          width={36}
+                          height={36}
+                          className="border-[2px] border-border flex-shrink-0"
+                          style={{ imageRendering: "pixelated" }}
+                        />
+                      )}
+                      <div className="overflow-hidden">
+                        <p className="truncate text-sm text-cream">
+                          {p.name}
+                        </p>
+                        <p className="truncate text-[10px] text-muted">
+                          {p.slug}
+                        </p>
+                      </div>
+                    </div>
 
-          {protocols.length === 0 && (
-            <div className="px-5 py-8 text-center text-xs text-muted normal-case">
-              No data for this category yet.
-            </div>
+                    <span className="hidden w-24 text-right text-xs text-muted sm:block">
+                      {p.category ?? "\u2014"}
+                    </span>
+
+                    <span
+                      className="w-28 text-right text-sm"
+                      style={{ color: getChangeColor(p) ?? ACCENT }}
+                    >
+                      {getMetricValue(p)}
+                    </span>
+                  </Link>
+                );
+              })}
+
+              {protocols.length === 0 && (
+                <div className="px-5 py-8 text-center text-xs text-muted normal-case">
+                  No data for this category yet.
+                </div>
+              )}
+            </>
           )}
         </div>
 
