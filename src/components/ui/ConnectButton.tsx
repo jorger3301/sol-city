@@ -20,6 +20,12 @@ export default function ConnectButton({ accent, shadow }: Props) {
     setError(null);
     const first = connectors[0];
     if (!first) {
+      // On mobile, redirect to Phantom's in-app browser
+      if (typeof window !== "undefined" && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        const url = encodeURIComponent(window.location.href);
+        window.location.href = `https://phantom.app/ul/browse/${url}`;
+        return;
+      }
       setError("No wallet found. Install Phantom or Solflare.");
       return;
     }

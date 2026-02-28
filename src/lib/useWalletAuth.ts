@@ -32,6 +32,18 @@ export interface WalletAuthState {
 
 const SIGN_MESSAGE = "Sign in to Sol City";
 
+function isMobileWithNoExtension(): boolean {
+  if (typeof window === "undefined") return false;
+  const ua = navigator.userAgent;
+  return /iPhone|iPad|iPod|Android/i.test(ua) && !/(WebView|wv\))/i.test(ua);
+}
+
+function openInWalletBrowser(): void {
+  const url = encodeURIComponent(window.location.href);
+  // Phantom universal link — opens the current page in Phantom's in-app browser
+  window.location.href = `https://phantom.app/ul/browse/${url}`;
+}
+
 export function useWalletAuth(): WalletAuthState {
   const wallet = useWallet();
   const { connect: walletConnect } = useConnectWallet();
@@ -95,6 +107,12 @@ export function useWalletAuth(): WalletAuthState {
     setError(null);
     const first = connectors[0];
     if (!first) {
+      // On mobile (iOS/Android), MWA may not register connectors.
+      // Redirect to Phantom's in-app browser where it injects its provider.
+      if (isMobileWithNoExtension()) {
+        openInWalletBrowser();
+        return;
+      }
       setError("No wallet found. Install Phantom or Solflare.");
       return;
     }
