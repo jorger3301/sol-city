@@ -1,5 +1,7 @@
 "use client";
 
+import { useWalletConnectors, useConnectWallet } from "@solana/connector";
+
 function PhantomIcon({ size = 16 }: { size?: number }) {
   return (
     <svg
@@ -48,6 +50,8 @@ const WALLETS = [
   {
     name: "Phantom",
     icon: PhantomIcon,
+    /** Lowercase strings to match against connector name/id */
+    match: ["phantom"],
     mobileBrowse: (href: string) =>
       `https://phantom.app/ul/browse/${encodeURIComponent(href)}`,
     extensionUrl: "https://phantom.app/download",
@@ -55,6 +59,7 @@ const WALLETS = [
   {
     name: "Solflare",
     icon: SolflareIcon,
+    match: ["solflare"],
     mobileBrowse: (href: string) =>
       `https://solflare.com/ul/v1/browse/${encodeURIComponent(href)}?ref=${encodeURIComponent(href)}`,
     extensionUrl: "https://solflare.com/download",
@@ -68,6 +73,35 @@ interface Props {
 export default function WalletPicker({ onClose }: Props) {
   const href = typeof window !== "undefined" ? window.location.href : "";
   const mobile = isMobile();
+  const connectors = useWalletConnectors();
+  const { connect: walletConnect } = useConnectWallet();
+
+  const handleClick = async (wallet: (typeof WALLETS)[number]) => {
+    if (mobile) {
+      // Deep link — handled by the <a> tag
+      return;
+    }
+
+    // On desktop, try to find a matching installed connector
+    const connector = connectors.find((c) => {
+      const id = (c.id ?? "").toLowerCase();
+      const name = ((c as { name?: string }).name ?? "").toLowerCase();
+      return wallet.match.some((m) => id.includes(m) || name.includes(m));
+    });
+
+    if (connector) {
+      onClose();
+      try {
+        await walletConnect(connector.id);
+      } catch {
+        // If connection fails, open the download page as fallback
+        window.open(wallet.extensionUrl, "_blank");
+      }
+    } else {
+      // Wallet not installed — open download page
+      window.open(wallet.extensionUrl, "_blank");
+    }
+  };
 
   return (
     <div
@@ -79,22 +113,31 @@ export default function WalletPicker({ onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <p className="mb-3 text-center text-[11px] text-cream">
-          {mobile ? "Open in wallet" : "Install a wallet"}
+          {mobile ? "Open in wallet" : "Connect wallet"}
         </p>
 
         <div className="flex flex-col gap-2">
-          {WALLETS.map((w) => (
-            <a
-              key={w.name}
-              href={mobile ? w.mobileBrowse(href) : w.extensionUrl}
-              target={mobile ? undefined : "_blank"}
-              rel={mobile ? undefined : "noopener noreferrer"}
-              className="flex items-center gap-2.5 border border-border px-3 py-2.5 text-[11px] text-cream transition-colors hover:border-border-light hover:bg-raised active:bg-raised"
-            >
-              <w.icon size={16} />
-              {w.name}
-            </a>
-          ))}
+          {WALLETS.map((w) =>
+            mobile ? (
+              <a
+                key={w.name}
+                href={w.mobileBrowse(href)}
+                className="flex items-center gap-2.5 border border-border px-3 py-2.5 text-[11px] text-cream transition-colors hover:border-border-light hover:bg-raised active:bg-raised"
+              >
+                <w.icon size={16} />
+                {w.name}
+              </a>
+            ) : (
+              <button
+                key={w.name}
+                onClick={() => handleClick(w)}
+                className="flex items-center gap-2.5 border border-border px-3 py-2.5 text-[11px] text-cream transition-colors hover:border-border-light hover:bg-raised active:bg-raised"
+              >
+                <w.icon size={16} />
+                {w.name}
+              </button>
+            ),
+          )}
         </div>
 
         <button

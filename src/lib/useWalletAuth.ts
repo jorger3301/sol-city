@@ -97,19 +97,8 @@ export function useWalletAuth(): WalletAuthState {
 
   const connect = useCallback(async () => {
     setError(null);
-    const first = connectors[0];
-    if (!first) {
-      setShowWalletPicker(true);
-      return;
-    }
-    setConnecting(true);
-    try {
-      await walletConnect(first.id);
-    } catch {
-      setConnecting(false);
-      setShowWalletPicker(true);
-    }
-  }, [connectors, walletConnect]);
+    setShowWalletPicker(true);
+  }, []);
 
   // When wallet connects and signer becomes available, sign message + create session
   useEffect(() => {

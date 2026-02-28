@@ -1,6 +1,6 @@
 "use client";
 
-import { useWallet, useConnectWallet, useDisconnectWallet, useWalletConnectors } from "@solana/connector";
+import { useWallet, useDisconnectWallet } from "@solana/connector";
 import { truncateAddress } from "@/lib/api/utils";
 import { useState } from "react";
 import WalletPicker from "@/components/ui/WalletPicker";
@@ -12,25 +12,8 @@ interface Props {
 
 export default function ConnectButton({ accent, shadow }: Props) {
   const { account, isConnected } = useWallet();
-  const { connect } = useConnectWallet();
   const { disconnect } = useDisconnectWallet();
-  const connectors = useWalletConnectors();
-  const [error, setError] = useState<string | null>(null);
   const [showPicker, setShowPicker] = useState(false);
-
-  const handleConnect = async () => {
-    setError(null);
-    const first = connectors[0];
-    if (!first) {
-      setShowPicker(true);
-      return;
-    }
-    try {
-      await connect(first.id);
-    } catch {
-      setShowPicker(true);
-    }
-  };
 
   if (isConnected && account) {
     return (
@@ -54,7 +37,7 @@ export default function ConnectButton({ accent, shadow }: Props) {
     <>
       <div className="flex flex-col items-center gap-1">
         <button
-          onClick={handleConnect}
+          onClick={() => setShowPicker(true)}
           className="btn-press px-3 py-1.5 text-[10px] text-bg"
           style={{
             backgroundColor: accent,
@@ -63,9 +46,6 @@ export default function ConnectButton({ accent, shadow }: Props) {
         >
           Connect Wallet
         </button>
-        {error && (
-          <p className="text-[9px] text-[#f85149]">{error}</p>
-        )}
       </div>
       {showPicker && (
         <WalletPicker onClose={() => setShowPicker(false)} />
