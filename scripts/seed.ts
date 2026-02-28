@@ -51,7 +51,7 @@ const TOP_DEVS = [
 const ghHeaders = {
   Accept: "application/vnd.github.v3+json",
   Authorization: `Bearer ${GITHUB_TOKEN}`,
-  "User-Agent": "git-city-seed",
+  "User-Agent": "sol-city-seed",
 };
 
 interface ExpandedGitHubData {
@@ -346,7 +346,7 @@ async function fetchAndUpsert(login: string): Promise<boolean> {
 // ─── Main ────────────────────────────────────────────────────
 
 async function main() {
-  console.log(`\nSeeding Git City with ${TOP_DEVS.length} developers...\n`);
+  console.log(`\nSeeding Sol City with ${TOP_DEVS.length} developers...\n`);
 
   // Deduplicate
   const unique = [...new Set(TOP_DEVS.map((d) => d.toLowerCase()))];

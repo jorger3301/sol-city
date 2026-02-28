@@ -1,5 +1,5 @@
 -- ============================================================
--- Git City — Initial Schema
+-- Sol City — Initial Schema
 -- ============================================================
 
 -- 1. developers — one row per GitHub user
