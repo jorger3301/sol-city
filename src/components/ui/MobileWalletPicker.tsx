@@ -11,7 +11,7 @@ const MOBILE_WALLETS = [
     name: "Solflare",
     color: "#fc9c1c",
     browse: (href: string) =>
-      `https://solflare.com/ul/v1/browse/${encodeURIComponent(href)}`,
+      `https://solflare.com/ul/v1/browse/${encodeURIComponent(href)}?ref=${encodeURIComponent(href)}`,
   },
 ];
 
