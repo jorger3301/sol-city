@@ -1515,7 +1515,7 @@ function HomeContent() {
                   setUsername(e.target.value);
                   if (feedback?.type === "error") setFeedback(null);
                 }}
-                placeholder="find yourself in the city"
+                placeholder="find a protocol or resident in the city"
                 className="min-w-0 flex-1 border-[3px] border-border bg-bg-raised px-3 py-2 text-base sm:text-xs text-cream outline-none transition-colors placeholder:text-dim sm:px-4 sm:py-2.5"
                 style={{ borderColor: undefined }}
                 onFocus={(e) => (e.currentTarget.style.borderColor = theme.accent)}
