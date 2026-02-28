@@ -52,9 +52,11 @@ export default function WalletHUD({
           backgroundColor: "rgba(13, 13, 15, 0.85)",
         }}
       >
-        <span
-          className="h-2 w-2 rounded-full"
-          style={{ backgroundColor: "#14F195" }}
+        <ResidentAvatar
+          walletAddress={walletAddress}
+          size="xs"
+          houseColor={houseColor}
+          interactive={false}
         />
         <span className="text-[10px] text-cream">
           {truncateAddress(walletAddress)}
@@ -106,25 +108,29 @@ export default function WalletHUD({
               )}
             </div>
 
-            {/* House color indicator for residents */}
-            {isResident && (
-              <div className="mt-2 flex items-center gap-2">
-                <div className="text-[8px] text-muted">HOUSE</div>
-                <ResidentAvatar
-                  walletAddress={walletAddress}
-                  size="xs"
-                  houseColor={houseColor}
-                  interactive={false}
-                />
-                <a
-                  href="/shop"
-                  className="text-[8px] transition-colors hover:text-cream"
-                  style={{ color: accentColor }}
-                >
-                  Customize &rarr;
-                </a>
+            {/* Wallet identity */}
+            <div className="mt-2 flex items-center gap-3">
+              <ResidentAvatar
+                walletAddress={walletAddress}
+                size="sm"
+                houseColor={houseColor}
+                interactive={false}
+              />
+              <div>
+                <div className="text-[9px] text-cream">
+                  {truncateAddress(walletAddress)}
+                </div>
+                {isResident && (
+                  <a
+                    href="/shop"
+                    className="text-[8px] transition-colors hover:text-cream"
+                    style={{ color: accentColor }}
+                  >
+                    Customize &rarr;
+                  </a>
+                )}
               </div>
-            )}
+            </div>
 
             {walletData && (
               <div className="mt-1.5 grid grid-cols-3 gap-2">
