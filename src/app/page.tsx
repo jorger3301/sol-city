@@ -143,38 +143,15 @@ interface CityStats {
   total_tvl: number;
 }
 
-// ─── Loading phases for search feedback ─────────────────────
-const LOADING_PHASES = [
-  { delay: 0,     text: "Fetching protocol data..." },
-  { delay: 2000,  text: "Analyzing on-chain activity..." },
-  { delay: 5000,  text: "Building the city block..." },
-  { delay: 9000,  text: "Almost there..." },
-  { delay: 13000, text: "Crunching the numbers. Hang tight..." },
-];
+const LOADING_PHASES = [{ delay: 0, text: "Searching..." }];
 
 // Errors that won't change if you retry the same username
-const PERMANENT_ERROR_CODES = new Set(["not-found", "org", "no-activity"]);
+const PERMANENT_ERROR_CODES = new Set(["not-found"]);
 
 const ERROR_MESSAGES: Record<string, { primary: (u: string) => string; secondary: string; hasRetry?: boolean; hasLink?: boolean }> = {
   "not-found": {
-    primary: (u) => `"${u}" wasn't found`,
-    secondary: "Check the spelling — protocol slugs are case-insensitive.",
-  },
-  "org": {
-    primary: (u) => `"${u}" is not a protocol`,
-    secondary: "Sol City only shows Solana DeFi protocols. Try searching for a protocol name like 'jupiter' or 'raydium'.",
-  },
-  "no-activity": {
-    primary: (u) => `"${u}" has no on-chain activity yet`,
-    secondary: "This protocol may not have enough TVL to appear in the city.",
-  },
-  "rate-limit": {
-    primary: () => "Search limit reached",
-    secondary: "You can look up 10 protocols per hour. Protocols already in the city are unlimited.",
-  },
-  "github-rate-limit": {
-    primary: () => "Data source temporarily unavailable",
-    secondary: "Too many requests. Try again in a few minutes.",
+    primary: (u) => `"${u}" not found`,
+    secondary: "No matching protocol in the city. Try a name like 'jupiter' or 'raydium'.",
   },
   "network": {
     primary: () => "Couldn't reach the server",
@@ -214,7 +191,7 @@ function SearchFeedback({
   useEffect(() => {
     if (feedback?.type !== "error") return;
     const code = feedback.code ?? "generic";
-    if (code === "no-activity" || code === "network" || code === "generic") return;
+    if (code === "network" || code === "generic") return;
     const timer = setTimeout(onDismiss, 8000);
     return () => clearTimeout(timer);
   }, [feedback, onDismiss]);
@@ -239,7 +216,7 @@ function SearchFeedback({
   return (
     <div
       className="relative w-full max-w-md border-[3px] bg-bg-raised/90 px-4 py-3 backdrop-blur-sm animate-[fade-in_0.15s_ease-out]"
-      style={{ borderColor: code === "rate-limit" ? accentColor + "66" : "rgba(248, 81, 73, 0.4)" }}
+      style={{ borderColor: "rgba(248, 81, 73, 0.4)" }}
     >
       <button onClick={onDismiss} className="absolute top-2 right-2 text-[10px] text-muted transition-colors hover:text-cream">&#10005;</button>
       <p className="text-[11px] text-cream normal-case pr-4">{msg.primary(u)}</p>
@@ -332,7 +309,7 @@ function MiniLeaderboard({ buildings, accent }: { buildings: CityBuilding[]; acc
               </span>
             </span>
             <span className="ml-2 flex-shrink-0 text-[10px] text-muted">
-              {(b[cat.key] as number).toLocaleString()}
+              {fmtUsd(b[cat.key] as number)}
             </span>
           </a>
         ))}
@@ -972,122 +949,55 @@ function HomeContent() {
     }
   }, [giftedParam, userParam, buildings, reloadCity]);
 
-  const searchUser = useCallback(async () => {
+  const searchUser = useCallback(() => {
     const trimmed = username.trim().toLowerCase();
     if (!trimmed) return;
 
     trackSearchUsed(trimmed);
 
-    // Check if this username already failed with a permanent error
-    const cachedError = failedUsernamesRef.current.get(trimmed);
-    if (cachedError) {
-      setFeedback({ type: "error", code: cachedError as any, username: trimmed });
+    setFocusedBuilding(null);
+    setSelectedBuilding(null);
+    setFeedback(null);
+
+    // Self-compare guard
+    const wasComparing = compareBuilding;
+    if (wasComparing && trimmed === wasComparing.slug.toLowerCase()) {
+      setCompareSelfHint(true);
+      setTimeout(() => setCompareSelfHint(false), 2000);
       return;
     }
 
-    // Snapshot compare state before async work — ESC may clear it mid-flight
-    const wasComparing = compareBuilding;
+    // Client-side search: find protocol in already-loaded buildings
+    const foundBuilding = buildings.find(
+      (b) =>
+        !b.isHouse &&
+        (b.slug.toLowerCase() === trimmed ||
+          (b.name && b.name.toLowerCase() === trimmed) ||
+          b.slug.toLowerCase().includes(trimmed) ||
+          (b.name && b.name.toLowerCase().includes(trimmed)))
+    );
 
-    setLoading(true);
-    setFeedback({ type: "loading" });
-    setFocusedBuilding(null);
-    setSelectedBuilding(null);
-    setShareData(null);
+    if (!foundBuilding) {
+      setFeedback({ type: "error", code: "not-found", username: trimmed });
+      return;
+    }
 
-    try {
-      // Self-compare guard
-      if (wasComparing && trimmed === wasComparing.slug.toLowerCase()) {
-        setCompareSelfHint(true);
-        setTimeout(() => setCompareSelfHint(false), 2000);
-        setFeedback(null);
-        return;
-      }
-
-      // Check if dev already exists in the city before the fetch
-      const existedBefore = buildings.some(
-        (b) => b.slug.toLowerCase() === trimmed
-      );
-
-      // Add/refresh the developer
-      const devRes = await fetch(`/api/dev/${encodeURIComponent(trimmed)}`);
-      const devData = await devRes.json();
-
-      if (!devRes.ok) {
-        let code: "not-found" | "org" | "no-activity" | "rate-limit" | "github-rate-limit" | "generic" = "generic";
-        if (devRes.status === 404) code = "not-found";
-        else if (devRes.status === 429) {
-          code = devData.error?.includes("GitHub") ? "github-rate-limit" : "rate-limit";
-        } else if (devRes.status === 400) {
-          if (devData.error?.includes("Organization")) code = "org";
-          else if (devData.error?.includes("no public activity")) code = "no-activity";
-        }
-        // Cache permanent errors so we don't re-fetch
-        if (PERMANENT_ERROR_CODES.has(code)) {
-          failedUsernamesRef.current.set(trimmed, code);
-        }
-        setFeedback({ type: "error", code, username: trimmed, raw: devData.error });
-        return;
-      }
-
-      setFeedback(null);
-
-      // Reload city with cache-bust so the new dev is included
-      const updatedBuildings = await reloadCity(true);
-
-      // Focus camera on the searched building
-      setFocusedBuilding(devData.github_login);
-
-      // A8: Ghost preview — if user searched for themselves, show temporary effect
-      if (
-        authLogin &&
-        trimmed === authLogin &&
-        !ghostPreviewShownRef.current
-      ) {
-        ghostPreviewShownRef.current = true;
-        setGhostPreviewLogin(devData.github_login);
-        setTimeout(() => setGhostPreviewLogin(null), 4000);
-      }
-
-      // Find the building in the updated city
-      const foundBuilding = updatedBuildings?.find(
-        (b: CityBuilding) => b.slug.toLowerCase() === trimmed
-      );
-
-      // Compare pick mode: use snapshot so ESC mid-search doesn't cause stale state
-      if (wasComparing && !comparePair && foundBuilding) {
-        // Only complete if compare mode is still active (not cancelled by ESC)
-        if (compareBuilding) {
-          setComparePair([wasComparing, foundBuilding]);
-          setFocusedBuilding(wasComparing.slug);
-        } else {
-          // Compare was cancelled during search — fall through to normal
-          if (foundBuilding) {
-            setSelectedBuilding(foundBuilding);
-            setExploreMode(true);
-          }
-        }
-      } else if (!existedBefore) {
-        // New developer: show the share modal
-        setShareData({
-          slug: devData.github_login,
-          tvl: devData.tvl,
-          rank: devData.rank,
-          logoUrl: devData.logoUrl,
-        });
-        if (foundBuilding) setSelectedBuilding(foundBuilding);
-        setCopied(false);
-      } else if (foundBuilding) {
-        // Existing developer: enter explore mode and show profile card
+    // Compare pick mode
+    if (wasComparing && !comparePair) {
+      if (compareBuilding) {
+        setComparePair([wasComparing, foundBuilding]);
+        setFocusedBuilding(wasComparing.slug);
+      } else {
         setSelectedBuilding(foundBuilding);
         setExploreMode(true);
       }
-      setUsername("");
-    } catch {
-      setFeedback({ type: "error", code: "network", username: trimmed });
-    } finally {
-      setLoading(false);
+    } else {
+      setFocusedBuilding(foundBuilding.slug);
+      setSelectedBuilding(foundBuilding);
+      setExploreMode(true);
     }
-  }, [username, buildings, reloadCity]);
+    setUsername("");
+  }, [username, buildings, compareBuilding, comparePair]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -2846,6 +2756,8 @@ function HomeContent() {
               setFocusedBuilding(walletAuth.address);
               setSelectedBuilding(house);
               setExploreMode(true);
+            } else {
+              setFeedback({ type: "error", code: "generic", username: "", raw: "No resident house found. Become a resident first!" });
             }
           }}
           claiming={walletAuth.connecting}

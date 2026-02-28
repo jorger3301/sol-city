@@ -31,7 +31,7 @@ async function getStats() {
 
   const [devResult, impressionResult] = await Promise.all([
     supabase
-      .from("developers")
+      .from("protocols")
       .select("id", { count: "exact", head: true }),
     supabase
       .from("sky_ad_events")

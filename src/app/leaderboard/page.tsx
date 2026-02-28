@@ -291,7 +291,7 @@ export default async function LeaderboardPage({
                           alt={p.name}
                           width={36}
                           height={36}
-                          className="border-[2px] border-border flex-shrink-0"
+                          className="border-[2px] border-border flex-shrink-0 rounded-sm object-cover"
                           style={{ imageRendering: "pixelated" }}
                         />
                       )}
