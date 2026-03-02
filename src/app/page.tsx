@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useWalletAuth } from "@/lib/useWalletAuth";
 import { truncateAddress } from "@/lib/api/utils";
+import { deriveName } from "solfaces";
+import { useSolName } from "solfaces/react";
 import WalletHUD from "@/components/WalletHUD";
 import ResidentAvatar from "@/components/ResidentAvatar";
 import {
@@ -357,6 +359,7 @@ function HomeContent() {
   } | null>(null);
   const [copied, setCopied] = useState(false);
   const walletAuth = useWalletAuth();
+  const walletSolName = useSolName(walletAuth.address ?? "", "display");
   const [purchasedItem, setPurchasedItem] = useState<string | null>(null);
   const [selectedBuilding, setSelectedBuilding] = useState<CityBuilding | null>(null);
   const [feedEvents, setFeedEvents] = useState<FeedEvent[]>([]);
@@ -1531,7 +1534,7 @@ function HomeContent() {
                         className="h-2 w-2 rounded-full"
                         style={{ backgroundColor: "#14F195" }}
                       />
-                      {truncateAddress(walletAuth.address!)}
+                      {walletSolName || truncateAddress(walletAuth.address!)}
                       {walletAuth.isResident && (
                         <span className="text-[8px]" style={{ color: "#14F195" }}>
                           Resident
@@ -1751,7 +1754,7 @@ function HomeContent() {
                   </div>
                   <p className="truncate text-[10px] text-muted">
                     {selectedBuilding.isHouse
-                      ? truncateAddress(selectedBuilding.slug)
+                      ? deriveName(selectedBuilding.slug, "display")
                       : `@${selectedBuilding.slug}`}
                   </p>
                   {!selectedBuilding.isHouse && selectedBuilding.active_raid_tag && (

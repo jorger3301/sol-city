@@ -40,6 +40,7 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "server-only": "^0.0.1",
+    "solfaces": "^2.1.2",
     "stripe": "^20.3.1",
     "three": "^0.183.0",
     "tweetnacl": "^1.0.3"

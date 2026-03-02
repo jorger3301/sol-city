@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getWalletSession } from "@/lib/wallet-session";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { deriveName } from "solfaces";
 import SignInButton from "./sign-in-button";
 import HouseColorPicker from "./house-color-picker";
 
@@ -91,7 +92,7 @@ export default async function ShopLanding() {
               <p className="text-xs text-cream normal-case">
                 Connected:{" "}
                 <span style={{ color: ACCENT }}>
-                  {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}
+                  {deriveName(walletAddress, "display")}
                 </span>
               </p>
             ) : (

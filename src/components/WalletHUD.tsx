@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { truncateAddress, formatTvl } from "@/lib/api/utils";
+import { useSolName } from "solfaces/react";
 import ResidentAvatar from "@/components/ResidentAvatar";
 import type { WalletData, WalletPnL } from "@/lib/api/types";
 
@@ -37,6 +38,7 @@ export default function WalletHUD({
   houseColor,
 }: WalletHUDProps) {
   const [expanded, setExpanded] = useState(false);
+  const solName = useSolName(walletAddress, "display");
 
   return (
     <div
@@ -59,7 +61,7 @@ export default function WalletHUD({
           interactive={false}
         />
         <span className="text-[10px] text-cream">
-          {truncateAddress(walletAddress)}
+          {solName || truncateAddress(walletAddress)}
         </span>
         {walletData && (
           <span className="text-[10px] text-muted">
@@ -118,7 +120,7 @@ export default function WalletHUD({
               />
               <div>
                 <div className="text-[9px] text-cream">
-                  {truncateAddress(walletAddress)}
+                  {solName || truncateAddress(walletAddress)}
                 </div>
                 {isResident && (
                   <a

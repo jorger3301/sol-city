@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { isValidSolanaAddress, truncateAddress, formatTvl } from "@/lib/api/utils";
+import { useSolName } from "solfaces/react";
 import ResidentAvatar from "@/components/ResidentAvatar";
 import type { WalletData } from "@/lib/api/types";
 
@@ -28,6 +29,7 @@ export default function WalletPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAllTransfers, setShowAllTransfers] = useState(false);
+  const solName = useSolName(address ?? "", "display");
 
   useEffect(() => {
     if (!address || !isValidSolanaAddress(address)) {
@@ -96,7 +98,7 @@ export default function WalletPage() {
         {/* Wallet header */}
         <div className="mb-6">
           <h1 className="text-lg text-cream font-mono">
-            {wallet.label ?? truncateAddress(wallet.address)}
+            {wallet.label ?? solName ?? truncateAddress(wallet.address)}
           </h1>
           {wallet.label && (
             <p className="text-[10px] text-muted mt-0.5 font-mono">

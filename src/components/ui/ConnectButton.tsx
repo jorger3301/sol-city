@@ -2,6 +2,7 @@
 
 import { useWallet, useConnectWallet, useDisconnectWallet, type WalletConnectorId } from "@solana/connector";
 import { truncateAddress } from "@/lib/api/utils";
+import { useSolName } from "solfaces/react";
 import { useState } from "react";
 import WalletPicker from "@/components/ui/WalletPicker";
 
@@ -25,13 +26,15 @@ export default function ConnectButton({ accent, shadow }: Props) {
     }
   };
 
+  const solName = useSolName(account ?? "", "display");
+
   if (isConnected && account) {
     return (
       <div className="flex items-center gap-2">
         <span
           className="flex items-center gap-1.5 border-[3px] border-border bg-bg/80 px-3 py-1.5 text-[10px] text-cream normal-case backdrop-blur-sm"
         >
-          {truncateAddress(account)}
+          {solName || truncateAddress(account)}
         </span>
         <button
           onClick={() => disconnect()}

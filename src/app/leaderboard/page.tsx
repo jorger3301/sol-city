@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { deriveName } from "solfaces";
 import LeaderboardTracker from "@/components/LeaderboardTracker";
 import ResidentAvatar from "@/components/ResidentAvatar";
 
@@ -77,8 +78,8 @@ function fmtPnl(val: number): string {
   return `${prefix}${Math.abs(val).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 }
 
-function truncateAddr(addr: string): string {
-  return addr.slice(0, 4) + "..." + addr.slice(-4);
+function solName(addr: string): string {
+  return deriveName(addr, "display");
 }
 
 export default async function LeaderboardPage({
@@ -228,7 +229,7 @@ export default async function LeaderboardPage({
                       />
                       <div className="overflow-hidden">
                         <p className="truncate text-sm text-cream">
-                          {t.name || truncateAddr(t.address)}
+                          {t.name || solName(t.address)}
                         </p>
                         <p className="truncate text-[10px] text-muted">
                           {t.trades.toLocaleString()} trades
